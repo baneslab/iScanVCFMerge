@@ -1,8 +1,5 @@
 # iScanVCFMerge
-
-## Citation
-Fountain, E. D., Zhou, L., Liu, Q., Karklus, A., Meyers, J., Fontanilla, I. K. C., Rafael, N., Pei, E., Yu, J., Zhang, Q., Zhu, X., Yuan, Y. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective,high-throughput SNP discovery. Frontiers in Ecology and Evolution.
-                
+        
 ## Installation
 
 pip install iScanVCFMerge
@@ -19,3 +16,7 @@ optional arguments:
                         Path to your iScan VCF file (.vcf or .vcf.gz)
   -O OUTPUT_DIRECTORY, --output_directory OUTPUT_DIRECTORY
                         Name of the output directory
+
+
+## Citation
+Fountain, E. D., Zhou, L., Liu, Q., Karklus, A., Meyers, J., Fontanilla, I. K. C., Rafael, N., Pei, E., Yu, J., Zhang, Q., Zhu, X., Yuan, Y. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective,high-throughput SNP discovery. Frontiers in Ecology and Evolution.
