@@ -1,12 +1,5 @@
 # iScanVCFMerge
 
-**  _ ____               __     ______ _____ __  __                      
- (_) ___|  ___ __ _ _ _\ \   / / ___|  ___|  \/  | ___ _ __ __ _  ___  
- | \___ \ / __/ _` | '_ \ \ / / |   | |_  | |\/| |/ _ \ '__/ _` |/ _ \ 
- | |___) | (_| (_| | | | \ V /| |___|  _| | |  | |  __/ | | (_| |  __/ 
- |_|____/ \___\__,_|_| |_|\_/  \____|_|   |_|  |_|\___|_|  \__, |\___| 
-                  https://www.github.com/baneslab          |___/**
-
 ## Citation
 Fountain, E. D., Zhou, L., Liu, Q., Karklus, A., Meyers, J., Fontanilla, I. K. C., Rafael, N., Pei, E., Yu, J., Zhang, Q., Zhu, X., Yuan, Y. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective,high-throughput SNP discovery. Frontiers in Ecology and Evolution.
                 
