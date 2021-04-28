@@ -1,8 +1,18 @@
 # iScanVCFMerge
         
-## Installation
+## Run Option 1: Github clone and run with Python3
 
-pip install iScanVCFMerge
+    git clone "https://github.com/baneslab/iScanVCFMerge.git"
+    $ cd iScanVCFMerge
+    $ python3 iScanVCFMerge.py
+
+## Run Option 2: Install with pip
+
+    pip install iScanVCFMerge
+
+or
+
+   python3 -m pip install iScanVCFMerge
 
 ## Usage
 
@@ -19,4 +29,7 @@ optional arguments:
 
 
 ## Citation
-Fountain, E. D., Zhou, L., Liu, Q., Karklus, A., Meyers, J., Fontanilla, I. K. C., Rafael, N., Pei, E., Yu, J., Zhang, Q., Zhu, X., Yuan, Y. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective,high-throughput SNP discovery. Frontiers in Ecology and Evolution.
+
+Please cite as:
+
+> Fountain, E. D., Zhou, L-C., Liu, Q-X., Karklus, A., Meyers, J., Fontanilla, I. K., Rafael, N., Pei, E-L., Yu, J-Y., Zhang, Q., Zhu, X-L., Yuan, Y-H. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective, high-throughput SNP discovery. Frontiers in Ecology and Evolution, doi: 10.3389/fevo.2021.629252
