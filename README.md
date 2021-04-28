@@ -12,24 +12,21 @@
 
 or
 
-   python3 -m pip install iScanVCFMerge
+    python3 -m pip install iScanVCFMerge
 
 ## Usage
 
-iScanVCFMerge [-h] -R REFERENCE_VCF -I ISCAN_VCF -O OUTPUT_DIRECTORY
+    iScanVCFMerge [-h] -R REFERENCE_VCF -I ISCAN_VCF -O OUTPUT_DIRECTORY
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -R REFERENCE_VCF, --reference_vcf REFERENCE_VCF
-                        Path to your reference VCF file (.vcf or .vcf.gz)
-  -I ISCAN_VCF, --iScan_vcf ISCAN_VCF
-                        Path to your iScan VCF file (.vcf or .vcf.gz)
-  -O OUTPUT_DIRECTORY, --output_directory OUTPUT_DIRECTORY
-                        Name of the output directory
+Optional arguments:
 
+    -h, --help                  Show the help message
+    -R, --reference_vcf         Reference VCF file against which iScan file will be merged (.vcf or .vcf.gz)
+    -I, --iScan_vcf             iScan VCF file  (.vcf or .vcf.gz)
+    -O, --output_directory      Name of the output directory (will be created if it doesn't exist)
 
 ## Citation
 
-Please cite as:
+Please cite the use of this software as follows:
 
 > Fountain, E. D., Zhou, L-C., Liu, Q-X., Karklus, A., Meyers, J., Fontanilla, I. K., Rafael, N., Pei, E-L., Yu, J-Y., Zhang, Q., Zhu, X-L., Yuan, Y-H. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective, high-throughput SNP discovery. Frontiers in Ecology and Evolution, doi: 10.3389/fevo.2021.629252
