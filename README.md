@@ -1,12 +1,14 @@
 # iScanVCFMerge
         
-## Run Option 1: Github clone and run with Python3
+## Installation
+
+### Option 1: Github clone and run with Python3
 
     git clone "https://github.com/baneslab/iScanVCFMerge.git"
     $ cd iScanVCFMerge
     $ python3 iScanVCFMerge.py
 
-## Run Option 2: Install with pip
+### Run Option 2: Install with pip
 
     pip install iScanVCFMerge
 
@@ -16,7 +18,7 @@ or
 
 ## Usage
 
-    iScanVCFMerge [-h] -R REFERENCE_VCF -I ISCAN_VCF -O OUTPUT_DIRECTORY
+    iScanVCFMerge [-h] -R <reference_vcf> -I <iScan_vcf> -O <output_directory>
 
 Optional arguments:
 
