@@ -2,12 +2,18 @@
         
 ## Installation
 
+iScanVCFMerge has been tested with Python 3.9.2 on MacOS Big Sur 11.3 and on Ubuntu 21.04. 
+
 ### Option 1: Github clone and run with Python3
 
     git clone "https://github.com/baneslab/iScanVCFMerge.git"
     $ cd iScanVCFMerge
     $ python3 iScanVCFMerge.py
 
+If running the script directly with Python, you may also need to install the required packages, _e.g._:
+
+    python3 -m pip install pandas
+    
 ### Run Option 2: Install with pip
 
     pip install iScanVCFMerge
