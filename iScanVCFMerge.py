@@ -63,10 +63,10 @@ print("             https://doi.org/10.3389/fev" +
       "o.2021.629252" + "\n")
 
 # #####################################################################
-# SET UP COMMAND LINE VARIABLES
+# PROCESS COMMAND LINE VARIABLES
 # #####################################################################
 
-# Get command line variables and define as global
+# Process command line variables
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-R', '--reference_vcf', help='Path to your refe' +
