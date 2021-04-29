@@ -1,6 +1,5 @@
 #!/usr/bin/python3
-'''iScanVCFMerge v0.1 build 2021-04-20'''
-# -*- encoding: utf-8 -*-
+'''iScanVCFMerge v0.1 build 2021-04-28'''
 
 # MIT License
 # Copyright © 2021 Banes, G. L., Meyers, J. and Fountain, E. D.
@@ -47,7 +46,7 @@ print(r" | |___) | (_| (_| | | | \ V /| |__" +
 print(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
       r"_|_|   |_|  |_|\___|_|  \__, |\___| ")
 print("      https://www.github.com/banesla" +
-      "b" + " \u2022 " + "build 2021-04-20 " +
+      "b" + " \u2022 " + "build 2021-04-28 " +
       "\033[0m" + r"   |___/")
 
 print("\n" + "Citation: Fountain, E. D., Zhou, " +
@@ -59,7 +58,9 @@ print("Yuan, Y. and Banes, G. L. (2021). C" +
 print(" iScan microarrays for cost-effecti" +
       "ve,high-throughput SNP discovery. ")
 print("\t\t\033[1m" + "Frontiers in Ecology and" +
-      " Evolution." + "\033[0m\n")
+      " Evolution." + "\033[0m")
+print("             https://doi.org/10.3389/fev" +
+      "o.2021.629252" + "\n")
 
 # #####################################################################
 # SET UP COMMAND LINE VARIABLES
