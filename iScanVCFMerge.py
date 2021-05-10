@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-'''iScanVCFMerge v0.1 build 2021-04-28'''
+'''iScanVCFMerge v0.1 build 2021-05-09'''
 
 # MIT License
 # Copyright © 2021 Banes, G. L., Meyers, J. and Fountain, E. D.
@@ -46,20 +46,20 @@ print(r" | |___) | (_| (_| | | | \ V /| |__" +
 print(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
       r"_|_|   |_|  |_|\___|_|  \__, |\___| ")
 print("      https://www.github.com/banesla" +
-      "b" + " \u2022 " + "build 2021-04-28 " +
-      "\033[0m" + r"   |___/")
+      "b" + " \u2022 " + "build 2021-05-09 " +
+      "\033[0m" + r"  |___/")
 
-print("\n" + "Citation: Fountain, E. D., Zhou, " +
-      "L., Liu, Q., Karklus, A., Meyers, J.,")
-print("Fontanilla, I. K. C., Rafael, N., P" +
-      "ei, E., Yu, J., Zhang, Q., Zhu, X.")
+print("\n" + "      Fountain, E. D., Zhou," +
+      " L., Karklus, A., Liu, Q., Meyers, J., ")
+print("    Fontanilla, I. K. C., Rafael, E. F., " +
+      "Yu, J., Zhang, Q., Zhu, X.,")
 print("Yuan, Y. and Banes, G. L. (2021). C" +
       "ross-species application of Illumina")
-print(" iScan microarrays for cost-effecti" +
-      "ve,high-throughput SNP discovery. ")
-print("\t\t\033[1m" + "Frontiers in Ecology and" +
-      " Evolution." + "\033[0m")
-print("             https://doi.org/10.3389/fev" +
+print("  iScan microarrays for cost-effecti" +
+      "ve, high-throughput SNP discovery. ")
+print("\t\t\033[1m" + "  Frontiers in Ecology" +
+      " and Evolution." + "\033[0m")
+print ("               https://doi.org/10.3389/fev" +
       "o.2021.629252" + "\n")
 
 # #####################################################################
