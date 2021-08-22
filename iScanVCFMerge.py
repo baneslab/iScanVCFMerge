@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-'''iScanVCFMerge v0.1 build 2021-05-09'''
+'''iScanVCFMerge v1.1 build 2021-08-21'''
 
 # MIT License
 # Copyright © 2021 Banes, G. L., Meyers, J. and Fountain, E. D.
@@ -31,6 +31,7 @@ import os
 import pathlib
 import gzip
 from datetime import date
+import vaex
 import pandas as pd
 startTime = time.time()
 
@@ -44,9 +45,9 @@ print(r" | \___ \ / __/ _` | '_ \ \ / / |  " +
 print(r" | |___) | (_| (_| | | | \ V /| |__" +
       r"_|  _| | |  | |  __/ | | (_| |  __/ ")
 print(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
-      r"_|_|   |_|  |_|\___|_|  \__, |\___| ")
+      r"_|_|   |_|  |_|\___|_|  \__, |\___|")
 print("      https://www.github.com/banesla" +
-      "b" + " \u2022 " + "build 2021-05-09 " +
+      "b" + " \u2022 " + "v1.1 build 2021-08-21 " +
       "\033[0m" + r"  |___/")
 
 print("\n" + "      Fountain, E. D., Zhou," +
@@ -69,10 +70,10 @@ print ("               https://doi.org/10.3389/fev" +
 # Process command line variables
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-R', '--reference_vcf', help='Path to your refe' +
-                    'rence VCF file (.vcf or .vcf.gz)', required=True)
 parser.add_argument('-I', '--iScan_vcf', help='Path to your iScan VC' +
                     'F file (.vcf or .vcf.gz)', required=True)
+parser.add_argument('-R', '--reference_vcf', help='Path to your refe' +
+                    'rence VCF file (.vcf or .vcf.gz)', required=True)
 parser.add_argument('-O', '--output_directory', help='Name of the ou' +
                     'tput directory', required=True)
 args = vars(parser.parse_args())
@@ -89,8 +90,8 @@ print("\033[1m" +
 print("****************************************" +
       "******************************")
 
-print('\n \u2022 Reference VCF:\t', reference_file)
-print(' \u2022 iScan VCF:\t\t', iScan_file)
+print('\n \u2022 iScan VCF:\t\t', iScan_file)
+print(' \u2022 Reference VCF:\t', reference_file)
 
 # #####################################################################
 # SET UP OUTPUT DIRECTORY
@@ -104,20 +105,19 @@ if not os.path.exists(path):
     os.makedirs(path)
 
 # #####################################################################
-# READ ISCAN VCF FILE INTO DATAFRAME AND SANITIZE RECORDS
+# READ ISCAN VCF FILE INTO DATAFRAME WITH PANDAS, AND SANITIZE RECORDS
 # #####################################################################
 
 print("****************************************" +
       "******************************")
 print("\033[1m" +
-      "Analyzing VCF files:" +
+      "Analyzing iScan VCF file:" +
       "\033[0m")
 print("****************************************" +
       "******************************")
 
-
+# Function to read iScan VCF into Pandas dataframe
 def read_iscanvcf(iscan_input):
-    '''Reads iScan VCF file'''
     try:
         gzf = gzip.open(iscan_input, 'rb')
         # lines = []
@@ -137,17 +137,15 @@ def read_iscanvcf(iscan_input):
         )
 
 
-print("\n \u2022 " + "Reading iScan VCF file...")
 # Read iScan_file into dataframe
+print("\n \u2022 " + "Reading iScan VCF file...")
 df = read_iscanvcf(iScan_file)
 
-print(" \u2022 " + "Verifying data types...")
 # Correct the data types as Pandas may interpret CHROM as
 # an int64 without 'chr' prefix
+print(" \u2022 " + "Preparing iScan variants for analysis...")
 df = df.astype({'#CHROM': str, 'POS': int, 'ID': str, 'REF': str,
                 'ALT': str, 'QUAL': str, 'FILTER': str, 'INFO': str})
-
-print(" \u2022 " + "Preparing data for comparison...")
 # Rename columns to drop # in CHROM and add i prefixes
 df.rename(columns={'#CHROM': 'iCHROM',
                    'POS': 'iPOS',
@@ -155,52 +153,76 @@ df.rename(columns={'#CHROM': 'iCHROM',
                    'ALT': 'iALT',
                    }, inplace=True)
 
-print(" \u2022 " + "Counting records...")
 # Count number of rows
+print(" \u2022 " + "Counting iScan variant records...\n")
 stat_iScan_total_before_sanitization = (len(df.index))
 
-print(" \u2022 " + "Checking positions targeted by multiple probes...")
-# Check for chrom and pos dupes
+# Check for CHROM and POS dupes
+print(" \u2022 " + "Checking for positions targeted by multiple probes...")
 indexDupes = df[df[['iCHROM', 'iPOS']].duplicated(keep='first') == True].index
 df.drop(indexDupes, inplace=True)
 stat_chrom_pos_dupes = (len(indexDupes))
 del indexDupes
+if (stat_chrom_pos_dupes > 0):
+    print("   " + "Found and removed " + str(stat_chrom_pos_dupes) + " duplicates.\n")
+else:
+    print("   " + "None found.\n")
 
-print(" \u2022 " + "Checking for REF INDELs...")
 # Drop rows where REF contains an INDEL
+print(" \u2022 " + "Checking for iScan REF INDELs...")
 indexREFindel = df[(df['iREF'].isin(['I', 'D']))].index
 df.drop(indexREFindel, inplace=True)
 stat_ref_was_indel = (len(indexREFindel))
+if (stat_ref_was_indel > 0):
+    print("   " + "Found and removed " + str(stat_ref_was_indel) + ".\n")
+else:
+    print("   " + "None found.\n")
 
-print(" \u2022 " + "Checking for ALT INDELs...")
+# Drop rows where ALT contains an INDEL
+print(" \u2022 " + "Checking for iScan ALT INDELs...")
 indexALTindel = df[(df['iALT'].isin(['I', 'D']))].index
 df.drop(indexALTindel, inplace=True)
 stat_alt_was_indel = (len(indexALTindel))
+if (stat_alt_was_indel > 0):
+    print("   " + "Found and removed " + str(stat_alt_was_indel) + ".\n")
+else:
+    print("   " + "None found.\n")
 
-print(" \u2022 " + "Checking for mitochondrial loci...")
 # Drop rows where CHROM is M or chrM
+print(" \u2022 " + "Checking for iScan mitochondrial loci...")
 indexmtDNA = df[(df['iCHROM'].isin(['M', 'chrM']))].index
 df.drop(indexmtDNA, inplace=True)
 stat_ref_mtDNA = (len(indexmtDNA))
+if (stat_ref_mtDNA > 0):
+    print("   " + "Found and removed " + str(stat_ref_mtDNA) + ".\n")
+else:
+    print("   " + "None found.\n")
 
-print(" \u2022 " + "Checking for invalid positions...")
 # Drop rows where CHROM or POS are zero
+print(" \u2022 " + "Checking for invalid iScan positions...")
 indexChromZero = df[(df['iCHROM'] == 0)].index
 indexPosZero = df[(df['iPOS'] == 0)].index
 stat_CHROM_zero = (len(indexChromZero))
 stat_POS_zero = (len(indexPosZero))
 df.drop(indexChromZero, inplace=True)
 df.drop(indexPosZero, inplace=True)
+if ((stat_CHROM_zero + stat_POS_zero) > 0):
+    print("   " + "Found and removed " + str(stat_CHROM_zero + stat_POS_zero) + ".\n")
+else:
+    print("   " + "None found.\n")
 
 # Check if 'chr' prefix is added
 print(" \u2022 " + "Checking if iScan VCF 'CHROM' field has 'chr' prefix...")
 check_chr = df.loc[df['iCHROM'].str.contains("chr", case=False)]
+# If it isn't, add it
 if check_chr.empty:
-    print(" \u2022 " + "Adding required 'chr' prefix to 'CHROM' field now...")
+    print("   " + "Added required 'chr' prefix to 'CHROM' field.\n")
     df['iCHROM'] = "chr" + df['iCHROM'].astype(str)
+else:
+    print("   " + "Prefix found.\n")
 del check_chr
 
-# Sort lexicographically in case iScan VCF is unsorted
+# Sort lexicographically in case the iScan VCF is unsorted
 print(" \u2022 " + "Sorting the iScan VCF...")
 df.sort_values(by=["iCHROM", "iPOS"], inplace=True)
 
@@ -218,44 +240,44 @@ list_of_iScan_loci = df['LOCUS'].to_list()
 # CONSTRUCT NEW VCF HEADER FROM REFERENCE VCF
 # #####################################################################
 
-print(" \u2022 " + "Preparing to construct new VCF header...")
+print("\n****************************************" +
+      "******************************")
+print("\033[1m" +
+      "Analyzing reference VCF file:" +
+      "\033[0m")
+print("****************************************" +
+      "******************************\n")
 
-# Prepare the first few (hard-coded) header lines
-vcf_header = ["##fileformat=VCFv4.3"]
-vcf_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
-vcf_header += ["##source=iScanVCFMerge"]
+print(" \u2022 " + "Reading header from reference VCF...")
 
-
-# Define function to read reference VCF header
+# Define function to collect reference VCF header
+# Stops reading lines once header is fully read
 def read_referencevcfheader(file):
-    '''Reads lines from reference VCF file to build header'''
     try:
         gzf = gzip.open(file, 'rb')
-        # lines = []
-        with io.BufferedReader(gzf) as procfile:
-            # header_lines = list(
-            # [ln.rstrip() for ln in procfile if
-            #     ln.startswith((b"##contig", b"##CONTIG"))]
-            # )
-            header_lines = [ln.rstrip() for ln in procfile if
-                            ln.startswith((b"##contig", b"##CONTIG"))]
+        with io.BufferedReader(gzf) as fi:
+            header_lines = []
+            for ln in fi:
+                if ln.startswith((b"##", b"##")):
+                    header_lines.append(ln.rstrip())
+                if ln.startswith((b"#chrom", b"#CHROM")):
+                    break
             gzf.close()
         return io.BytesIO(b"\n".join(header_lines)).read()
     except gzip.BadGzipFile:
-        with open(file, "r") as procfile:
-            # header_lines = list(
-            #    [ln.rstrip() for ln in procfile if
-            #     ln.startswith(("##contig", "##CONTIG"))]
-            # )
-            header_lines = [ln.rstrip() for ln in procfile if
-                            ln.startswith(("##contig", "##CONTIG"))]
+        with open(file, 'r') as fi:
+            header_lines = []
+            for ln in fi:
+                if ln.startswith(("##", "##")):
+                    header_lines.append(ln.rstrip())
+                if ln.startswith(("#chrom", "#CHROM")):
+                    break
         return "\n".join(header_lines)
-
-
-print(" \u2022 " + "Constructing new VCF header...")
 
 # Read the reference VCF header and work out what to do with it
 # depending on if it was from a GZIP or not
+print(" \u2022 " + "Constructing new VCF header...\n")
+vcf_header = []
 derived_header = read_referencevcfheader(reference_file)
 try:
     decoded_header = derived_header.decode('UTF-8')
@@ -263,213 +285,194 @@ try:
 except (UnicodeDecodeError, AttributeError):
     vcf_header += [derived_header]
 
+# Get list of header rows from reference VCF
+entire_header = vcf_header[0].split("\n")
+
+contigs_header = ["##fileformat=VCFv4.3"]
+contigs_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
+contigs_header += ["##source=iScanVCFMerge"]
+for s in entire_header:
+    if s.startswith(('##contig', '##CONTIG')):
+        contigs_header.append(s.rstrip())
+
 # #####################################################################
-# READ THE REFERENCE VCF INTO A DATA FRAME USING CHUNKSIZE
+# READ THE REFERENCE VCF INTO A DATA FRAME USING VAEX
 # #####################################################################
 
-# Read the reference VCF file
-print(" \u2022 " + "Reading reference VCF file...")
+print(" \u2022 " + "Reading the reference VCF...")
 
+dfv_reference = vaex.from_csv(reference_file, sep="\t", convert=True, chunk_size=5_000_000, skiprows=len(entire_header))
 
-def read_referencevcf(file):
-    '''Reads reference VCF file'''
-    try:
-        gzf = gzip.open(file, 'rb')
-        # lines = []
-        with io.BufferedReader(gzf) as procfile:
-            lines = [ln for ln in procfile if not ln.startswith(b"##")]
-        gzf.close()
-        return pd.read_csv(
-            io.BytesIO(b"".join(lines)),
-            dtype={
-                b"#CHROM": str,
-                b"POS": int,
-                b"ID": str,
-                b"REF": str,
-                b"ALT": str,
-                b"QUAL": str,
-                b"FILTER": str,
-                b"INFO": str,
-            },
-            sep="\t",
-            chunksize=1000000,
-        )
-    except gzip.BadGzipFile:
-        with open(file, "r") as procfile:
-            lines = [ln for ln in procfile if not ln.startswith("##")]
-        return pd.read_csv(
-            io.StringIO("".join(lines)),
-            dtype={
-                "#CHROM": str,
-                "POS": int,
-                "ID": str,
-                "REF": str,
-                "ALT": str,
-                "QUAL": str,
-                "FILTER": str,
-                "INFO": str,
-            },
-            sep="\t",
-            chunksize=1000000,
-        )
+print(" \u2022 " + "Processing and sorting the reference VCF...")
 
-
-print(" \u2022 " + "Splitting reference VCF into blocks...")
-
-# Chunking function adapted from:
-# https://towardsdatascience.com/why-and-how-to-use-
-# pandas-with-large-data-9594dda2ea4c
-
-
-def chunk_preprocessing(chunk_input):
-    '''Reads reference VCF data in chunks '''
-    section = chunk_input.copy()
-    section.rename(columns={'#CHROM': 'CHROM'}, inplace=True)
-    print(" \u2022 " + "Processing variant block...")
-    section['LOCUS'] = section['CHROM'] + ":" + section['POS'].astype(str)
-    print(" \u2022 " + "Pairing reference VCF positions " +
-          "to iScan positions...")
-    filter_by_locus_calc = section['LOCUS'].isin(list_of_iScan_loci)
-    return section[filter_by_locus_calc]
-
-
-df_chunk = read_referencevcf(reference_file)
-chunk_list = []
-
-# Each chunk is in data frame format, so these need to be
-# appended in order on top of one another and then concatenated
-# into a single reference VCF data frame
-
-print(" \u2022 " + "Processing blocks...")
-
-for chunk in df_chunk:
-    chunk_filter = chunk_preprocessing(chunk)
-    chunk_list.append(chunk_filter)
-
-print(" \u2022 " + "Concatenating reference VCF blocks...")
-
-df_reference = pd.concat(chunk_list)
-
-print(" \u2022 " + "Sorting the reference VCF...")
-
-df_reference.sort_values(by=["CHROM", "POS"], inplace=True)
-
-stat_loci_preserved_reference = (len(df_reference.index))
+dfv_reference.rename('#CHROM', 'CHROM')
+dfv_reference['LOCUS'] = dfv_reference.CHROM.astype('str') + ':' + dfv_reference.POS.astype('str')
+dfv_reference.sort(['CHROM', 'POS'], ascending=True)
 
 # #####################################################################
 # MATCH VARIANT POSITIONS SHARED BETWEEN THE TWO VCF DATA FRAMES
 # #####################################################################
 
+# Convert list of reference VCF loci to list
 print(" \u2022 " + "Building list of loci in the reference VCF...")
-# Convert list of reference loci to list
-list_of_reference_loci = df_reference['LOCUS'].to_list()
+list_of_reference_loci = dfv_reference['LOCUS'].tolist()
 
-print(" \u2022 " + "Collecting loci in the iScan VCF that are " +
-      "also in the reference VCF...\n")
-# This may not be necessary, but I feel happier doing it to make sure
-# there are no unanticipated overlaps!
+# Collect loci in the iScan VCF that are also in the reference VCF
+# This may not be necessary but I feel better doing it than not!
+print(" \u2022 " + "Checking for matching positions between the VCFs...")
 filter_by_locus = df['LOCUS'].isin(list_of_reference_loci)
-df_iScan = df[filter_by_locus]
-# Delete the original data frame as it's no longer needed
+
+# Convert the pandas iScan df to a vaex df and delete the original
+dfv_iScan = vaex.from_pandas(df[filter_by_locus], copy_index=False)
 del df
 
-stat_loci_preserved_iScan = (len(df_iScan.index))
+# Count the number of loci preserved in the iScan vcf
+stat_loci_preserved_iScan = dfv_iScan.count()
+list_of_preserved_iScan_loci = dfv_iScan['LOCUS'].tolist()
 
-print("****************************************" +
+# Remove any irrelevant loci from the reference VCF
+print(" \u2022 " + "Trimming VCFs to matching positions...\n")
+dfv_reference = dfv_reference[dfv_reference['LOCUS'].isin(list_of_preserved_iScan_loci)]
+dfv_reference = dfv_reference.extract()
+
+# Count the number of loci preserved in the reference vcf
+stat_loci_preserved_reference = dfv_reference.count()
+
+df_qc = dfv_reference.to_pandas_df()
+df_qc.rename(columns={'CHROM': '#CHROM'}, inplace=True)
+df_qc.drop(columns=['LOCUS'], inplace=True)
+with open(path + "/qc.vcf", 'w') as f:
+    f.write("\n".join(contigs_header) + "\n")
+    df_qc.to_csv(f, index=False, sep='\t', header=True, mode='a')
+    f.close()
+
+
+# #####################################################################
+# COLLECT SAMPLE NAMES
+# #####################################################################
+
+print("\n****************************************" +
       "******************************")
 print("\033[1m" +
-      "Cleaning up the VCF files prior to concatenation:" +
+      "Collecting sample information:" +
+      "\033[0m")
+print("****************************************" +
+      "******************************\n")
+
+# Get the sample names from each VCF
+# Begins either at 8 or 9 depending on if FORMAT column is present
+print(" \u2022 " + "Collecting sample information...\n")
+if 'FORMAT' in dfv_reference.columns:
+    reference_cols_samples = (dfv_reference.get_column_names(virtual=True))[9:(len(dfv_reference.columns))]
+else:
+    reference_cols_samples = (dfv_reference.get_column_names(virtual=True))[8:(len(dfv_reference.columns))]
+if 'FORMAT' in dfv_iScan.columns:
+    # We minus 1 because the last column is not a sample
+    iScan_cols_samples = (dfv_iScan.get_column_names(virtual=True))[9:(len(dfv_iScan.columns)-1)]
+else:
+    iScan_cols_samples = (dfv_iScan.get_column_names(virtual=True))[8:(len(dfv_iScan.columns)-1)]
+
+# Output sample names located
+print(" \u2022 " + "The following " + str(len(reference_cols_samples)) +
+      " samples were found in the reference VCF:\n")
+from textwrap import fill
+print(fill(', '.join(reference_cols_samples), width=70))
+
+print("\n \u2022 " + "The following " + str(len(iScan_cols_samples)) +
+      " samples were found in the iScan VCF:\n")
+from textwrap import fill
+print(fill(', '.join(iScan_cols_samples), width=70))
+
+
+
+# #####################################################################
+# CLEAN UP VCF FILES PRIOR TO JOINING
+# #####################################################################
+
+print("\n****************************************" +
+      "******************************")
+print("\033[1m" +
+      "Cleaning up the VCF files prior to merging:" +
       "\033[0m")
 print("****************************************" +
       "******************************")
 
-print("\n \u2022 " + "Dropping unnecessary columns in each VCF...")
 # Because the relevant iScan columns are joined on to the end of the Reference
-# columns, these are not needed in their respective data frames
-df_reference.drop(columns=['LOCUS'], inplace=True)
-df_iScan.drop(columns=['LOCUS', 'QUAL', 'FILTER', 'INFO'], inplace=True)
+# columns, these are not needed in their respective data frames. So, drop.
+print("\n \u2022 " + "Dropping unnecessary columns from the iScan VCF...")
+dfv_iScan.drop(columns=['QUAL', 'FILTER', 'INFO'], inplace=True)
 
-# Both data frames need to be re-indexed so that their row numbers
-# are continuous from zero
-print(" \u2022 " + "Re-indexing the VCF records...")
-df_iScan.reset_index(drop=True, inplace=True)
-df_reference.reset_index(drop=True, inplace=True)
+# Also drop FORMAT from iScan if it exists
+if 'FORMAT' in dfv_iScan.columns:
+    dfv_iScan.drop(columns=['FORMAT'], inplace=True)
 
-# DEBUGG: print("iScan data index: " + str(df_iScan.index))
-# DEBUGG: print("Reference data index : " + str(df_reference.index))
-
+# Clean out old INFO, QUAL and FILTER values, which will differ between VCFs
+# Uses hacky way courtesy of https://github.com/kmcentush 
+# https://github.com/vaexio/vaex/issues/802#issuecomment-702464182
 print(" \u2022 " + "Cleaning up old INFO, QUAL and FILTER values...")
-# These can be cleaned out because they'll differ between VCFs
-df_reference = df_reference.assign(INFO='.', QUAL='.', FILTER='.')
+dfv_reference['INFO'] = vaex.vrange(0, len(dfv_reference))
+dfv_reference['INFO'] = (dfv_reference['INFO'] * 0).astype('str').str.replace('0.000000', '.')
+dfv_reference['QUAL'] = vaex.vrange(0, len(dfv_reference))
+dfv_reference['QUAL'] = (dfv_reference['QUAL'] * 0).astype('str').str.replace('0.000000', '.')
+dfv_reference['FILTER'] = vaex.vrange(0, len(dfv_reference))
+dfv_reference['FILTER'] = (dfv_reference['FILTER'] * 0).astype('str').str.replace('0.000000', '.')
 
-print(" \u2022 " + "Updating reference VCF locus IDs from the iScan VCF...")
+# Join the vaex dataframes together
+print(" \u2022 " + "Concatenating genotypes...")
+dfv_joined = dfv_reference.join(dfv_iScan, on='LOCUS', rprefix='i', how='left', inplace='True')
+dfv_joined = dfv_joined.extract()
+
 # Locus ID values from iScan take precedent over the
-# (probably missing) ones in the Reference file
-df_reference.merge(df_iScan, on='ID')
-df_iScan.drop(columns=['ID'], inplace=True)
+# (probably missing) ones in the Reference file, so update
+# these and drop the iID column
+print(" \u2022 " + "Updating reference VCF locus IDs from the iScan VCF...")
+dfv_joined['ID'] = dfv_joined['iID']
+dfv_joined.drop(columns=['iID'], inplace=True)
 
 print(" \u2022 " + "Checking for non-genotype records in the reference VCF...")
-# The 'FORMAT' column is optional in the VCF Standard, but if it's there,
+# If FORMAT column still exists (from reference VCF), sanitize to GT only
+# The 'FORMAT' column is optional in the VCF standard, but if it's there,
 # it means there are more than just GT values in the sample columns.
 # These need to be cleaned out as only GT data can be retained.
 # The FORMAT column is then dropped.
-if 'FORMAT' in df_reference.columns:
-    print(" \u2022 " + "Removing non-genotype records from the reference " +
-          "VCF...\n")
-    # Nine columns because 8 are mandatory, the 9th (FORMAT) is optional,
-    # and we checked to make sure it's here
-    num_samples = (len(df_reference.columns)-9)
-    # Here we get a list of sample column names to loop over
-    cols_all = df_reference.columns.tolist()
-    # Starting with column 9 (because one is actually 0) -- i.e.
-    # the first sample, to the end
-    cols_samples = cols_all[9:]
 
-    # We remove anything after the first colon. This is appropriate
+if 'FORMAT' in dfv_joined.columns:
+    # We slice only the first three characters. This is appropriate
     # because the VCF standard requires that the GT entry is always
     # first, even if other values follow. So we do this across
     # all sample columns:
+    print("   " + "Removing non-genotype records...")
+    cols_samples = reference_cols_samples + iScan_cols_samples
     for column in cols_samples:
-        df_reference[column] = [x.split(':')[0] for x in df_reference[column]]
+        dfv_joined[column] = dfv_joined[column].str.slice(start=0, stop=3)
 
-    print(" \u2022 " + "The following " + str(num_samples) +
-          " samples will be processed from the reference VCF:\n")
-    from textwrap import fill
-    print(fill(', '.join(cols_samples), width=70))
+    # Drop FORMAT column:
+    dfv_joined.drop(columns=['FORMAT'], inplace=True)
 
-    # Drop FORMAT from the reference VCF:
-    df_reference.drop(columns=['FORMAT'], inplace=True)
-    # Drop if it exists in the iScan VCF:
-    if 'FORMAT' in df_iScan.columns:
-        df_iScan.drop(columns=['FORMAT'], inplace=True)
+# Drop the locus columns
+dfv_joined.drop(columns=['LOCUS', 'iLOCUS'], inplace=True)
 
-# Collect information on samples in the iScan VCF
-# We minus only 4 because we only deleted four columns thus far
-iScan_num_samples = (len(df_iScan.columns)-4)
-# Here we get a list of sample column names to loop over
-iScan_cols_all = df_iScan.columns.tolist()
-# Starting with column 4 (because 1 is 0) -- i.e. the first sample, to the end
-iScan_cols_samples = iScan_cols_all[4:]
-print("\n \u2022 " + "The following " + str(iScan_num_samples) +
-      " samples will be processed from the iScan VCF:\n")
-print(fill(', '.join(iScan_cols_samples), width=70))
-
-# Concatenate the data frames
-df_master = df_reference.join(df_iScan)
-print("\n \u2022 " + "Concatenation complete!\n")
-
-# Drop the old frames from memory
-# Now we just use the master data frame
-del df_iScan
-del df_reference
+# Set total records value
+total_records = dfv_joined.count()
 
 # Create new data frame to hold passing records to merge
 df_merged = pd.DataFrame()
 
-# Set total records value
-total_records = (len(df_master.index))
+# Revert to Pandas for processing
+df_master = dfv_joined.to_pandas_df()
 
-print("****************************************" +
+# Drop the old frames
+del dfv_iScan
+del dfv_reference
+del dfv_joined
+
+if os.path.exists(reference_file + ".hdf5"):
+  os.remove(reference_file + ".hdf5")
+if os.path.exists(reference_file + ".yaml"):
+  os.remove(reference_file + ".yaml")
+
+
+print("\n****************************************" +
       "******************************")
 print("\033[1m" +
       "Processing " + str(total_records) + " variant records:" +
@@ -504,7 +507,7 @@ if not df_exact_match.empty:
     df_exact_match.sort_values(by=["CHROM", "POS"], inplace=True)
     df_exact_match.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/exact_matches_biallelic.vcf", 'w') as f:
-        f.write("\n".join(vcf_header) + "\n")
+        f.write("\n".join(contigs_header) + "\n")
         df_exact_match.to_csv(f, index=False, sep='\t', header=True,
                               mode='a')
         f.close()
@@ -555,7 +558,7 @@ if not df_ref_alt_reversed.empty:
     df_ref_alt_reversed.sort_values(by=["CHROM", "POS"], inplace=True)
     df_ref_alt_reversed.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/exact_matches_rev_biallelic.vcf", 'w') as f:
-        f.write("\n".join(vcf_header) + "\n")
+        f.write("\n".join(contigs_header) + "\n")
         df_ref_alt_reversed.to_csv(f, index=False, sep='\t', header=True,
                                    mode='a')
         f.close()
@@ -621,7 +624,7 @@ if not df_alternate_alleles.empty:
                                           df_alternate_alleles['iPOS']) &
                                          (df_alternate_alleles['REF'] ==
                                           df_alternate_alleles['iREF']) &
-                                         (df_alternate_alleles[column] ==
+                                         (df_alternate_alleles[column_to_check] ==
                                           df_alternate_alleles['iALT'])])
                 # If matches were found, index to facilitating dropping
                 if not df_matches.empty:
@@ -657,7 +660,7 @@ if not df_alternate_alleles.empty:
                 # otherwise flipped will find some
                 # regular records and duplicate those
                 # causing a failure later on
-                    if column == 'ALT_4':
+                    if column_to_check == 'ALT_4':
                         df_alternate_alleles.drop(df_matches_index,
                                                   inplace=True)
                     # Clear the df_matches dataframe
@@ -673,7 +676,7 @@ if not df_alternate_alleles.empty:
                                           df_alternate_alleles['iPOS']) &
                                          (df_alternate_alleles['REF'] ==
                                           df_alternate_alleles['iALT']) &
-                                         (df_alternate_alleles[column] ==
+                                         (df_alternate_alleles[column_to_check] ==
                                           df_alternate_alleles['iREF'])])
                 # If matches were found, index to facilitating dropping
                 if not df_matches.empty:
@@ -681,43 +684,43 @@ if not df_alternate_alleles.empty:
                     print(" \u2022 " + "Re-coding " +
                           str(len(df_matches_index)) +
                           " iScan genotypes matching reversed ALT allele " +
-                          (column[4:5]) + "...")
+                          (column_to_check[4:5]) + "...")
                     # Update the variant call GTs for all iScan samples,
                     # depending on the column:
                     # Note this throws local variable 'x' value is
                     # not used warning
                     for xyz in iScan_cols_samples:
-                        if column == 'ALT_1' and column in df_matches.columns:
-                            df_matches[column].replace({'0/1': 'X/X',
+                        if column_to_check == 'ALT_1' and column_to_check in df_matches.columns:
+                            df_matches[column_to_check].replace({'0/1': 'X/X',
                                                         '1/0': 'Y/Y'},
                                                        inplace=True)
-                            df_matches[column].replace({'X/X': '1/0',
+                            df_matches[column_to_check].replace({'X/X': '1/0',
                                                         'Y/Y': '0/1'},
                                                        inplace=True)
-                        if column == 'ALT_2' and column in df_matches.columns:
-                            df_matches[column].replace({'1/1': 'X/X',
+                        if column_to_check == 'ALT_2' and column_to_check in df_matches.columns:
+                            df_matches[column_to_check].replace({'1/1': 'X/X',
                                                         '1/0': 'Y/Y',
                                                         '0/1': 'Z/Z'},
                                                        inplace=True)
-                            df_matches[column].replace({'X/X': '1/2',
+                            df_matches[column_to_check].replace({'X/X': '1/2',
                                                         'Y/Y': '0/2',
                                                         'Z/Z': '1/0'},
                                                        inplace=True)
-                        if column == 'ALT_3' and column in df_matches.columns:
-                            df_matches[column].replace({'1/1': 'X/X',
+                        if column_to_check == 'ALT_3' and column_to_check in df_matches.columns:
+                            df_matches[column_to_check].replace({'1/1': 'X/X',
                                                         '1/0': 'Y/Y',
                                                         '0/1': 'Z/Z'},
                                                        inplace=True)
-                            df_matches[column].replace({'X/X': '1/3',
+                            df_matches[column_to_check].replace({'X/X': '1/3',
                                                         'Y/Y': '0/3',
                                                         'Z/Z': '1/0'},
                                                        inplace=True)
-                        if column == 'ALT_4' and column in df_matches.columns:
-                            df_matches[column].replace({'1/1': 'X/X',
+                        if column_to_check == 'ALT_4' and column_to_check in df_matches.columns:
+                            df_matches[column_to_check].replace({'1/1': 'X/X',
                                                         '1/0': 'Y/Y',
                                                         '0/1': 'Z/Z'},
                                                        inplace=True)
-                            df_matches[column].replace({'X/X': '1/4',
+                            df_matches[column_to_check].replace({'X/X': '1/4',
                                                         'Y/Y': '0/4',
                                                         'Z/Z': '1/0'},
                                                        inplace=True)
@@ -758,7 +761,7 @@ if not df_alternate_alleles.empty:
         df_multiallelic_regular.rename(columns={'CHROM': '#CHROM'},
                                        inplace=True)
         with open(path + "/exact_matches_multiallelic.vcf", 'w') as f:
-            f.write("\n".join(vcf_header) + "\n")
+            f.write("\n".join(contigs_header) + "\n")
             df_multiallelic_regular.to_csv(f, index=False, sep='\t',
                                            header=True, mode='a')
             f.close()
@@ -790,7 +793,7 @@ if not df_alternate_alleles.empty:
         df_multiallelic_flipped.rename(columns={'CHROM': '#CHROM'},
                                        inplace=True)
         with open(path + "/exact_matches_rev_multiallelic.vcf", 'w') as f:
-            f.write("\n".join(vcf_header) + "\n")
+            f.write("\n".join(contigs_header) + "\n")
             df_multiallelic_flipped.to_csv(f, index=False, sep='\t',
                                            header=True, mode='a')
             f.close()
@@ -821,7 +824,7 @@ if not df_master.empty:
     df_master.sort_values(by=["CHROM", "POS"], inplace=True)
     df_master.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/rejected.vcf", 'w') as f:
-        f.write("\n".join(vcf_header) + "\n")
+        f.write("\n".join(contigs_header) + "\n")
         df_master.to_csv(f, index=False, sep='\t', header=True, mode='a')
         f.close()
     # Record statistic
@@ -835,7 +838,7 @@ if not df_merged.empty:
     # Sort lexicographically and export to VCF with header
     df_merged.sort_values(by=["#CHROM", "POS"], inplace=True)
     with open(path + "/merged.vcf", 'w') as f:
-        f.write("\n".join(vcf_header) + "\n")
+        f.write("\n".join(contigs_header) + "\n")
         df_merged.to_csv(f, index=False, sep='\t', header=True, mode='a')
         f.close()
     # Record statistic
@@ -915,7 +918,7 @@ print(r"    .-./ _=_ \.-.  " + "\tBiallelic positions where REF &" +
 print(r"   {  (,(oYo),) }} ")
 print(r"   {{ |  ' '  | }} " + "\t\033[1mexact_matches_rev_biallelic.vcf" +
       " (N=" + str(stat_ref_alt_reversed) + ")\033[0m")
-print(r"   { {  (---)   }} " + "\tBiallelic positions that matched" +
+print(r"   { {  (---)   }} " + "\tBiallelic positions that matched " +
       "once reversed.")
 print(r"   {{  }'-=-'{ } } ")
 print(r"   { { }._:_.{  }} " + "\t\033[1mexact_matches_multiallelic.vcf" +
@@ -925,7 +928,7 @@ print(r"   {{  } -:- { } } " + "\tMultiallelic positions where" +
 print(r"   {_{ }`===`{  _} ")
 print(r"  ((((\)     (/))))" + "\t\033[1mexact_matches_rev_" +
       "multiallelic.vcf (N=" + str(stat_multiallelic_flipped) + ")\033[0m")
-print("                    " + "\tMultiallelic positions that" +
+print("                    " + "\tMultiallelic positions that " +
       "matched once reversed.\n")
 print(r"        .=''=.         " + "\033[1m\tmerged.vcf (N=" +
       str(stat_merged) + ")\033[0m")
