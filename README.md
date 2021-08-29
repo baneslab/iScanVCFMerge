@@ -7,6 +7,7 @@ iScanVCFMerge is a Python tool to facilitate the cross-species application of [I
 - The reference population VCF file must now be [bgzipped and indexed with tabix](https://www.biostars.org/p/59492/). This requirement does not apply to the iScan VCF file, which can either be uncompressed or gzip compressed.
 - In the prior version, the complete reference population VCF file was read into memory before the relevant records were pulled. This caused issues for some users handling enormous reference VCF files. In this version, we use the [Pysam](https://github.com/pysam-developers/pysam) library's lightweight wrapper of the [htslib C-API](http://www.ncbi.nlm.nih.gov/pubmed/19505943) to pull only the relevant records in the first place. The script should now run near-instantaneously, irrespective of input file size.
 - Console output is now handled by the Python logging module and is written to a .log file in the output directory.
+- Version numbering now follows 1.x vs 0.x format for improved compatibility with PyPI.
 
 ## Installation
 
