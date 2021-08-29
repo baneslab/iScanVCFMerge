@@ -24,6 +24,7 @@ If running the script directly with Python, you may also need to install the req
     python3 -m pip install pandas pysam
     
 ### Run Option 2: Install with pip
+N.B. The version on PyPI does not work properly. Please run directly (Option 1) until fixed.
 
     pip install iScanVCFMerge
 
