@@ -24,103 +24,152 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import sys
 import argparse
-import time
-import io
 import os
 import pathlib
+import time
+import logging
+import io
 import gzip
 from datetime import date
 from textwrap import fill, indent
 import pysam
-import pandas as pd
 import tempfile
+import pandas as pd
+
 startTime = time.time()
 
-print("\033[1m" + "\n")
-print(r"  _ ____               __     _____" +
-      "_ _____ __  __                      ")
-print(r" (_) ___|  ___ __ _ _ _\ \   / / __" +
-      r"_|  ___|  \/  | ___ _ __ __ _  ___  ")
-print(r" | \___ \ / __/ _` | '_ \ \ / / |  " +
-      r" | |_  | |\/| |/ _ \ '__/ _` |/ _ \ ")
-print(r" | |___) | (_| (_| | | | \ V /| |__" +
-      r"_|  _| | |  | |  __/ | | (_| |  __/ ")
-print(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
-      r"_|_|   |_|  |_|\___|_|  \__, |\___|")
-print("      https://www.github.com/banesla" +
-      "b" + " \u2022 " + "v1.1 build 2021-08-29 " +
-      "\033[0m" + r"  |___/")
+# #####################################################################
+# CHECK PYTHON VERSION COMPATIBILITY
+# #####################################################################
 
-print("\n" + "      Fountain, E. D., Zhou," +
-      " L., Karklus, A., Liu, Q., Meyers, J., ")
-print("    Fontanilla, I. K. C., Rafael, E. F., " +
-      "Yu, J., Zhang, Q., Zhu, X.,")
-print("Yuan, Y. and Banes, G. L. (2021). C" +
-      "ross-species application of Illumina")
-print("  iScan microarrays for cost-effecti" +
-      "ve, high-throughput SNP discovery. ")
-print("\t\t\033[1m" + "  Frontiers in Ecology" +
-      " and Evolution." + "\033[0m")
-print ("               https://doi.org/10.3389/fev" +
-      "o.2021.629252" + "\n")
+try:
+    assert sys.version_info >= (3, 9)
+except AssertionError:
+    print("iScanVCFMerge v1.1 requires Python 3.9 or greater.")
+    exit(1)
 
 # #####################################################################
-# PROCESS COMMAND LINE VARIABLES AND MAKE OUTPUT DIR
+# PROCESS COMMAND LINE VARIABLES
 # #####################################################################
 
 # Parse command line variables
 parser = argparse.ArgumentParser()
-parser.add_argument('-I', '--iScan_vcf', help='Path to your iScan VC' +
+parser.add_argument('-I', '--iScanVCF', help='Path to your iScan VC' +
                     'F file (.vcf or .vcf.gz)', required=True)
-parser.add_argument('-R', '--reference_vcf', help='Path to your refe' +
-                    'rence VCF file, which must be bgzip compressed ' +
+parser.add_argument('-R', '--ReferenceVCF', help='Path to your refe' +
+                    'rence VCF file, with which the iScan file will' +
+                    ' be merged. This must be bgzip compressed ' +
                     'and be indexed with tabix', required=True)
 parser.add_argument('-O', '--output_directory', help='Name of the ou' +
-                    'tput directory', required=True)
+                    'tput directory (will be created if it doesn\'t ' +
+                    'exist)', required=True)
 args = vars(parser.parse_args())
 
 # Set variables from command line for downstream use
-reference_file = args['reference_vcf']
-iScan_file = args['iScan_vcf']
+reference_file = args['ReferenceVCF']
+iScan_file = args['iScanVCF']
 output_directory = args['output_directory']
 
-print("****************************************" +
-      "******************************")
-print("\033[1m" +
-      "User input variables were as follows:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************")
-
-print('\n \u2022 iScan VCF:\t\t', iScan_file)
-print(' \u2022 Reference VCF:\t', reference_file)
-
-# Check for reference VCF file's tabix index
-if not os.path.exists(reference_file + '.tbi'):
-    print(" \u2022 " + "Could not find ." + reference_file + ".tbi")
-    print("   " + "Ensure reference VCF file is bgzipped and")
-    print("   " + "indexed using tabix.")
-    sys.exit(1)
+# #####################################################################
+# CREATE OUTPUT DIRECTORY
+# #####################################################################
 
 # Create output directory folder if it does not already exist
 parent_dir = pathlib.Path().absolute()
 path = os.path.join(parent_dir, output_directory)
-print(" \u2022 " + "Output directory:\t" + path + "\n")
 if not os.path.exists(path):
     os.makedirs(path)
+
+# #####################################################################
+# COMMENCE LOGGING
+# #####################################################################
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(asctime)s %(message)-8s',
+                    datefmt='%Y-%m-%d %H:%M',
+                    filename=(path + '/iScanVCFMerge_log.log'),
+                    encoding='UTF-8')
+# Set handler to log INFO or higher
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+# Set prettier format for console use
+formatter = logging.Formatter(u'%(message)-8s')
+console.setFormatter(formatter)
+# Add handler to root logger
+logging.getLogger().addHandler(console)
+
+# #####################################################################
+# PRINT HEADER AND LOCATE TABIX INDEX
+# #####################################################################
+
+print("\033[1m" + "\n")
+logging.info(r"  _ ____               __     _____" +
+             "_ _____ __  __                      ")
+logging.info(r" (_) ___|  ___ __ _ _ _\ \   / / __" +
+             r"_|  ___|  \/  | ___ _ __ __ _  ___  ")
+logging.info(r" | \___ \ / __/ _` | '_ \ \ / / |  " +
+             r" | |_  | |\/| |/ _ \ '__/ _` |/ _ \ ")
+logging.info(r" | |___) | (_| (_| | | | \ V /| |__" +
+             r"_|  _| | |  | |  __/ | | (_| |  __/ ")
+logging.info(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
+             r"_|_|   |_|  |_|\___|_|  \__, |\___|")
+logging.info("        https://www.github.com/banesla" +
+             "b" + " \u2022 " + "v1.1 2021-08-29" +
+             r"  |___/")
+print("\033[0m", end="\r")
+logging.info("")
+logging.info("      Fountain, E. D., Zhou," +
+             " L., Karklus, A., Liu, Q., Meyers, J., ")
+logging.info("    Fontanilla, I. K. C., Rafael, E. F., " +
+             "Yu, J., Zhang, Q., Zhu, X.,")
+logging.info("Yuan, Y. and Banes, G. L. (2021). C" +
+             "ross-species application of Illumina")
+logging.info("  iScan microarrays for cost-effecti" +
+             "ve, high-throughput SNP discovery. ")
+print("\033[1m", end="\r")
+logging.info("\t" + "     Frontiers in Ecology" +
+             " and Evolution, 9:629252.")
+print("\033[0m", end="\r")
+logging.info("               https://doi.org/10.3389/fev" +
+             "o.2021.629252")
+logging.info("")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("User input variables were as follows:")
+print("\033[0m", end="\r")
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
+
+logging.info(" \u2022 iScan VCF:\t\t" + iScan_file)
+logging.info(" \u2022 Reference VCF:\t" + reference_file)
+logging.info(" \u2022 " + "Output directory:\t" + path)
+logging.info("")
+
+# Check for reference VCF file's tabix index
+if not os.path.exists(reference_file + '.tbi'):
+    logging.error(" \u2022 " + "Could not find ." + reference_file + ".tbi")
+    logging.error("   " + "Ensure reference VCF file is bgzipped and")
+    logging.error("   " + "indexed using tabix.")
+    sys.exit(1)
 
 # #####################################################################
 # READ ISCAN VCF FILE INTO DATAFRAME WITH PANDAS AND SANITIZE RECORDS
 # #####################################################################
 
-print("****************************************" +
-      "******************************")
-print("\033[1m" +
-      "Analyzing iScan VCF file:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("Analyzing iScan VCF file:")
+print("\033[0m", end="\r")
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
+
 
 # Function to read iScan VCF into Pandas dataframe
 def read_iScanVCF(iScan_input):
@@ -144,15 +193,17 @@ def read_iScanVCF(iScan_input):
             sep="\t",
         )
     except:
-        print(" \u2022 " + "iScan VCF file must be gzipped or plain text.")
+        logging.exception(" \u2022 " + "iScan VCF file must be gzipped" +
+                          " or plain text.")
         sys.exit(1)
 
 # Read iScan_file into Pandas dataframe
-print("\n \u2022 " + "Reading iScan VCF file...")
+logging.info(" \u2022 " + "Reading iScan VCF file...")
+logging.info("")
 df_iScan = read_iScanVCF(iScan_file)
 
 # Drop unnecessary columns from the iScan dataframe
-print("\n \u2022 " + "Dropping unnecessary columns ...")
+logging.info(" \u2022 " + "Dropping unnecessary columns ...")
 df_iScan.drop(columns=['QUAL', 'FILTER', 'INFO'], inplace=True)
 if 'FORMAT' in df_iScan.columns:
     df_iScan.drop(columns=['FORMAT'], inplace=True)
@@ -163,47 +214,49 @@ df_iScan.rename(columns={'#CHROM': 'CHROM'}, inplace=True)
 # Renaming REF, ALT and ID
 # This is because we don't inner merge on these columns
 # And we need to keep them in the merged data frame
-df_iScan.rename(columns={'REF': 'iREF'}, inplace=True)
-df_iScan.rename(columns={'ALT': 'iALT'}, inplace=True)
-df_iScan.rename(columns={'ID': 'iID'}, inplace=True)
+df_iScan.rename(columns={'REF': 'iREF', 'ALT': 'iALT',
+                         'ID': 'iID'}, inplace=True)
 
 # Correct data types for the remaining columns
 # e.g. Pandas may interpret CHROM as int64 without 'chr' prefix
-print(" \u2022 " + "Validating column data types...")
+logging.info(" \u2022 " + "Validating column data types...")
 df_iScan = df_iScan.astype({'CHROM': str, 'POS': int, 'iID': str, 'iREF': str,
-                'iALT': str})
+                            'iALT': str})
 
 # Count number of rows
-print(" \u2022 " + "Counting number of iScan records...\n")
+logging.info(" \u2022 " + "Counting number of iScan records...")
+logging.info("")
 stat_iScan_total_before_sanitization = (len(df_iScan.index))
 
 # Drop CHROM and POS duplicates
-print(" \u2022 " + "Checking for positions targeted by multiple probes...")
-indexDupes = df_iScan[df_iScan[['CHROM', 'POS']].duplicated(keep='first') == True].index
+logging.info(" \u2022 " + "Checking for positions targeted " +
+             "by multiple probes...")
+indexDupes = df_iScan[df_iScan[['CHROM',
+                                'POS']].duplicated(keep='first')].index
 df_iScan.drop(indexDupes, inplace=True)
 stat_chrom_pos_dupes = (len(indexDupes))
 del indexDupes
 
 # Drop rows where REF contains an INDEL
-print(" \u2022 " + "Checking for INDELs in the REF allele...")
+logging.info(" \u2022 " + "Checking for INDELs in the REF allele...")
 indexREFindel = df_iScan[(df_iScan['iREF'].isin(['I', 'D']))].index
 df_iScan.drop(indexREFindel, inplace=True)
 stat_ref_was_indel = (len(indexREFindel))
 
 # Drop rows where ALT contains an INDEL
-print(" \u2022 " + "Checking for INDELs in the ALT allele...")
+logging.info(" \u2022 " + "Checking for INDELs in the ALT allele...")
 indexALTindel = df_iScan[(df_iScan['iALT'].isin(['I', 'D']))].index
 df_iScan.drop(indexALTindel, inplace=True)
 stat_alt_was_indel = (len(indexALTindel))
 
 # Drop rows where CHROM is M or chrM
-print(" \u2022 " + "Checking for mitochondrial loci...")
+logging.info(" \u2022 " + "Checking for mitochondrial loci...")
 indexmtDNA = df_iScan[(df_iScan['CHROM'].isin(['M', 'chrM']))].index
 df_iScan.drop(indexmtDNA, inplace=True)
 stat_ref_mtDNA = (len(indexmtDNA))
 
 # Drop rows where CHROM or POS are zero
-print(" \u2022 " + "Checking for invalid variant positions...")
+logging.info(" \u2022 " + "Checking for invalid variant positions...")
 indexChromZero = df_iScan[(df_iScan['CHROM'] == 0)].index
 indexPosZero = df_iScan[(df_iScan['POS'] == 0)].index
 stat_CHROM_zero = (len(indexChromZero))
@@ -212,52 +265,57 @@ df_iScan.drop(indexChromZero, inplace=True)
 df_iScan.drop(indexPosZero, inplace=True)
 
 # Check if 'chr' prefix is there
-print(" \u2022 " + "Checking that CHROM field is properly prefixed...")
+logging.info(" \u2022 " + "Checking that CHROM field is properly prefixed...")
 check_chr = df_iScan.loc[df_iScan['CHROM'].str.contains("chr", case=False)]
 # If it isn't, add it
 if check_chr.empty:
-    print("   " + "Added required 'chr' prefix to 'CHROM' field.\n")
+    logging.info("   " + "Added required 'chr' prefix to 'CHROM' field.")
     df_iScan['CHROM'] = "chr" + df_iScan['CHROM'].astype(str)
 else:
-    print("   " + "Prefix found.\n")
+    logging.info("   " + "Prefix found.")
 del check_chr
+logging.info("")
 
 # Sort lexicographically in case the iScan VCF is unsorted
-print(" \u2022 " + "Sorting the variants lexicographically...")
+logging.info(" \u2022 " + "Sorting the variants lexicographically...")
 df_iScan.sort_values(by=["CHROM", "POS"], inplace=True)
 
 # Reset the integer index and count surviving records
-print(" \u2022 " + "Re-indexing the remaining iScan records...")
+logging.info(" \u2022 " + "Re-indexing the remaining iScan records...")
+logging.info("")
 df_iScan.reset_index(drop=True)
 stat_iScan_total_after_sanitization = (len(df_iScan.index))
-
 
 # #####################################################################
 # READ REFERENCE VCF AND CONSTRUCT HEADER
 # #####################################################################
 
-print("\n****************************************" +
-      "******************************")
-print("\033[1m" +
-      "Analyzing reference VCF file:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************\n")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("Analyzing reference VCF file:")
+print("\033[0m", end="\r")
+
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
 
 # Check for tabix index
-print(" \u2022 " + "Checking for tabix index...")
+logging.info(" \u2022 " + "Checking for tabix index...")
 
 # If tabix index is found:
 if os.path.exists(reference_file + '.tbi'):
-    print("   " + "Found tabix index.\n")
+    logging.info("   " + "Found tabix index.")
+    logging.info("")
 
     # Read reference VCF into tbx
-    print(" \u2022 " + "Reading reference VCF file...\n")
+    logging.info(" \u2022 " + "Reading reference VCF file...")
+    logging.info("")
     tbx = pysam.TabixFile(reference_file)
 
-    print(" \u2022 " + "Reading reference header...")
+    logging.info(" \u2022 " + "Reading reference header...")
     # Collect contig lines from reference VCF header
-    print(" \u2022 " + "Collecting contig information...")
+    logging.info(" \u2022 " + "Collecting contig information...")
     contig_lines = []
     for ln in tbx.header:
         if ln.startswith(('##contig', '##CONTIG')):
@@ -265,23 +323,24 @@ if os.path.exists(reference_file + '.tbi'):
     contig_header = "\n".join(contig_lines)
 
     # Assemble output header
-    print(" \u2022 " + "Constructing new VCF header...\n")
+    logging.info(" \u2022 " + "Constructing new VCF header...")
+    logging.info("")
     output_header = ["##fileformat=VCFv4.3"]
     output_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
     output_header += ["##source=iScanVCFMergev1.1"]
     output_header += contig_header
 
 else:
-    print("   " + "None found. Please bgzip your reference file")
-    print("   " + "and index with tabix before proceeding.")
+    logging.info("   " + "None found. Please bgzip your reference file")
+    logging.info("   " + "and index with tabix before proceeding.")
     sys.exit(1)
-
 
 # #####################################################################
 # PULL iSCAN POSITIONS FROM REFERENCE VCF INTO DATA FRAME
 # #####################################################################
 
-print(" \u2022 " + "Collecting records from overlapping variant sites...")
+logging.info(" \u2022 " + "Collecting records from overlapping " +
+             "variant sites...")
 
 # Collect iScan positions from reference VCF file
 f = tempfile.NamedTemporaryFile(mode='a+t')
@@ -303,20 +362,22 @@ df_reference.rename(columns={'#CHROM': 'CHROM'}, inplace=True)
 
 # Correct data types for the remaining columns
 # e.g. Pandas may interpret CHROM as int64 without 'chr' prefix
-print(" \u2022 " + "Validating column data types...")
-df_reference = df_reference.astype({'CHROM': str, 'POS': int, 'ID': str, 'REF': str,
-                'ALT': str, 'QUAL': str, 'FILTER': str, 'INFO': str})
+logging.info(" \u2022 " + "Validating column data types...")
+df_reference = df_reference.astype({'CHROM': str, 'POS': int,
+                                    'ID': str, 'REF': str,
+                                    'ALT': str, 'QUAL': str,
+                                    'FILTER': str, 'INFO': str})
 
 # Rename columns to drop # in CHROM and add i prefixes
 df_reference.rename(columns={'#CHROM': 'CHROM'}, inplace=True)
 df_reference.reset_index(drop=True, inplace=True)
 
-print(" \u2022 " + "Cleaning up old INFO, QUAL and FILTER values...")
+logging.info(" \u2022 " + "Cleaning up old INFO, QUAL and FILTER values...")
 # These can be cleaned out because they'll differ between VCFs
 df_reference = df_reference.assign(INFO='.', QUAL='.', FILTER='.')
 
 # Check and remove superfluous FORMAT records
-print(" \u2022 " + "Checking for non-genotype records...")
+logging.info(" \u2022 " + "Checking for non-genotype records...")
 # The 'FORMAT' column is optional in the VCF Standard, but if it's there,
 # it means there are more than just GT values in the sample columns.
 # These need to be cleaned out as only GT data can be retained.
@@ -324,7 +385,7 @@ print(" \u2022 " + "Checking for non-genotype records...")
 if 'FORMAT' in df_reference.columns:
     # Set data type
     df_reference = df_reference.astype({'FORMAT': str})
-    print("   " + "Removing non-genotype records...")
+    logging.info("   " + "Removing non-genotype records...")
     # Nine columns because 8 are mandatory, the 9th (FORMAT) is optional,
     # and we checked to make sure it's here
     num_samples_in_reference = (len(df_reference.columns)-9)
@@ -344,27 +405,30 @@ if 'FORMAT' in df_reference.columns:
     # Drop format column
     df_reference.drop(columns=['FORMAT'], inplace=True)
 
-print("\n \u2022 " + "Sorting the variants lexicographically...")
+logging.info("")
+logging.info(" \u2022 " + "Sorting the variants lexicographically...")
 df_reference.sort_values(by=["CHROM", "POS"], inplace=True)
 
-print(" \u2022 " + "Re-indexing the remaining reference records...")
+logging.info(" \u2022 " + "Re-indexing the remaining reference records...")
+logging.info("")
 df_reference.reset_index(drop=True, inplace=True)
 stat_loci_preserved_reference = (len(df_reference.index))
-
 
 # #####################################################################
 # JOIN DATA FRAMES
 # #####################################################################
 
-print("\n****************************************" +
-      "******************************")
-print("\033[1m" +
-      "Collecting sample information:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************\n")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("Collecting sample information:")
+print("\033[0m", end="\r")
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
 
-print(" \u2022 " + "Collecting sample information...\n")
+logging.info(" \u2022 " + "Collecting sample information...")
+logging.info("")
 
 # Collect information on samples in the iScan VCF
 # We minus only 5 because CHROM, POS, REF, ALT and ID
@@ -374,21 +438,25 @@ iScan_num_samples = (len(df_iScan.columns)-5)
 iScan_cols_all = df_iScan.columns.tolist()
 # Starting with column 4 (because 1 is 0) -- i.e. the first sample, to the end
 iScan_cols_samples = iScan_cols_all[5:]
-print(" \u2022 " + "The following " + str(iScan_num_samples) +
-      " samples will be processed from the iScan VCF:\n")
-print(indent((fill(', '.join(iScan_cols_samples), width=67)), '   '))
+logging.info(" \u2022 " + "The following " + str(iScan_num_samples) +
+             " samples will be processed from the iScan VCF:")
+logging.info("")
+logging.info(indent((fill(', '.join(iScan_cols_samples), width=67)), '   '))
+logging.info("")
 
 # Print names of samples in reference VCF
-print("\n \u2022 " + "The following " + str(num_samples_in_reference) +
-      " samples will be processed from the reference VCF:\n")
-print(indent((fill(', '.join(cols_samples_in_reference), width=67)), '   '))
-
-
+logging.info(" \u2022 " + "The following " + str(num_samples_in_reference) +
+             " samples will be processed from the reference VCF:")
+logging.info("")
+logging.info(indent((fill(', '.join(cols_samples_in_reference),
+                          width=67)), '   '))
+logging.info("")
 
 # Join on CHROM and POS columns
-print("\n \u2022 " + "Concatenating sample records...")
-df_master = df_iScan.merge(df_reference, how = 'inner', on = ['CHROM', 'POS'])
-print("   " + "Concatenation complete!\n")
+logging.info(" \u2022 " + "Concatenating sample records...")
+df_master = df_iScan.merge(df_reference, how='inner', on=['CHROM', 'POS'])
+logging.info("   " + "Concatenation complete!")
+logging.info("")
 
 # Drop the old frames from memory
 del df_iScan
@@ -396,35 +464,41 @@ del df_reference
 
 # Locus ID values from iScan take precedent over the
 # (probably missing) ones in the Reference file
-print(" \u2022 " + "Updating reference VCF locus IDs from the iScan VCF...")
+logging.info(" \u2022 " + "Updating reference VCF locus IDs from " +
+             "the iScan VCF...")
+logging.info("")
 df_master['ID'] = df_master['iID']
 df_master.drop(columns=['iID'], inplace=True)
 
 # Re-order remaining columns
-df_master = df_master.reindex(columns=(['CHROM', 'POS', 'ID', 'REF', 'iREF', 'ALT', 'iALT', 'QUAL', 'FILTER', 'INFO'] + iScan_cols_samples + cols_samples_in_reference))
+df_master = df_master.reindex(columns=(['CHROM', 'POS', 'ID', 'REF',
+                                        'iREF', 'ALT', 'iALT', 'QUAL',
+                                        'FILTER', 'INFO'] +
+                                       iScan_cols_samples +
+                                       cols_samples_in_reference))
 
 # Count total number of variant records in master
 total_records = (len(df_master.index))
 
-print("\n****************************************" +
-      "******************************")
-print("\033[1m" +
-      "Processing " + str(total_records) + " variant records:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("Processing " + str(total_records) + " variant records:")
+print("\033[0m", end="\r")
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
 
 # Create new data frame to hold passing records to merge
 df_merged = pd.DataFrame()
-
 
 # #####################################################################
 # GET RECORDS WHERE REF AND ALT ALLELES MATCH EXACTLY
 # #####################################################################
 
 # Pull out exact matches and record stats
-print("\n \u2022 " + "Detecting variants where REF and ALT alleles " +
-      "match exactly...")
+logging.info(" \u2022 " + "Detecting variants where REF and ALT alleles " +
+             "match exactly...")
 df_exact_match = pd.DataFrame(df_master.loc[(df_master['REF'] ==
                                              df_master['iREF']) &
                                             (df_master['ALT'] ==
@@ -454,16 +528,14 @@ if not df_exact_match.empty:
     # Drop the data frame from memory and count records
     del df_exact_match
     total_records = (total_records - stat_exact_match)
-    # DEBUG print(" \u2022 " + "Total variant records " +
-    # "remaining:\t" + str(total_records))
 
 # #####################################################################
 # GET RECORDS WHERE REF AND ALT ALLELES ARE EXACTLY REVERSED
 # #####################################################################
 
 # Pull out REF and ALT reversed and record stats
-print(" \u2022 " + "Detecting variants where REF and ALT alleles are" +
-      " reversed...")
+logging.info(" \u2022 " + "Detecting variants where REF and ALT alleles are" +
+             " reversed...")
 df_ref_alt_reversed = pd.DataFrame(df_master.loc[(df_master['REF'] ==
                                                   df_master['iALT']) &
                                                  (df_master['ALT'] ==
@@ -501,8 +573,6 @@ if not df_ref_alt_reversed.empty:
     # Drop the data frame from memory and count records
     del df_ref_alt_reversed
     total_records = (total_records - stat_ref_alt_reversed)
-    # DEBUG print(" \u2022 " + "Total variant records " +
-    # "remaining:\t" + str(total_records))
 
 # #####################################################################
 # CHECK IF THE ALT FIELD IN THE REF VCF CONTAINS MULTIPLE ALLELES
@@ -510,8 +580,8 @@ if not df_ref_alt_reversed.empty:
 
 # Check if the reference ALT field contains commas
 # This indicates alternative alleles for the ALT field
-print(" \u2022 " + "Detecting multi-allelic ALT sites in the " +
-      "reference data...")
+logging.info(" \u2022 " + "Detecting multi-allelic ALT sites in the " +
+             "reference data...")
 df_alternate_alleles = df_master.loc[(df_master['ALT'].str.contains(','))]
 stat_alternate_alleles = len(df_alternate_alleles)
 
@@ -521,12 +591,13 @@ stat_multiallelic_flipped = "0"
 
 # Only proceed if they exist
 if not df_alternate_alleles.empty:
-    print(" \u2022 " + "Processing multi-allelic ALT sites:")
+    logging.info(" \u2022 " + "Processing multi-allelic ALT sites:")
     df_alternate_alleles_index = df_alternate_alleles.index
     # Create a new data frame containing only those sites
     # Split the ALT column into multiple columns; one for each allele
     split_alts = df_alternate_alleles['ALT'].str.split(',', expand=True)
-    split_alts.columns = ['ALT_{}'.format(int(x)+1) for x in split_alts.columns]
+    split_alts.columns = ['ALT_{}'.format(int(x)+1) for
+                          x in split_alts.columns]
     # Add those columns to the end of the alternate_alleles data frame
     df_alternate_alleles = df_alternate_alleles.join(split_alts)
     # Delete the separate split_alts from memory
@@ -557,10 +628,10 @@ if not df_alternate_alleles.empty:
                 # If matches were found, index to facilitating dropping
                 if not df_matches.empty:
                     df_matches_index = df_matches.index
-                    print(" \u2022 " + "Re-coding " +
-                          str(len(df_matches_index)) +
-                          " iScan genotypes matching alternative ALT" +
-                          " allele " + (column_to_check[4:5]) + "...")
+                    logging.info(" \u2022 " + "Re-coding " +
+                                 str(len(df_matches_index)) +
+                                 " iScan genotypes matching alternative ALT" +
+                                 " allele " + (column_to_check[4:5]) + "...")
                     # Update the variant call GTs for all iScan samples,
                     # depending on the column:
                     for each_sample in iScan_cols_samples:
@@ -605,10 +676,11 @@ if not df_alternate_alleles.empty:
                 # If matches were found, index to facilitating dropping
                 if not df_matches.empty:
                     df_matches_index = df_matches.index
-                    print(" \u2022 " + "Re-coding " +
-                          str(len(df_matches_index)) +
-                          " iScan genotypes matching reversed ALT allele " +
-                          (column_to_check[4:5]) + "...")
+                    logging.info(" \u2022 " + "Re-coding " +
+                                 str(len(df_matches_index)) +
+                                 " iScan genotypes matching" +
+                                 " reversed ALT allele " +
+                                 (column_to_check[4:5]) + "...")
                     # Update the variant call GTs for all iScan samples,
                     # depending on the column:
                     # Note this throws local variable 'x' value is
@@ -616,38 +688,38 @@ if not df_alternate_alleles.empty:
                     for xyz in iScan_cols_samples:
                         if column_to_check == 'ALT_1' and column_to_check in df_matches.columns:
                             df_matches[column_to_check].replace({'0/1': 'X/X',
-                                                        '1/0': 'Y/Y'},
-                                                       inplace=True)
+                                                                 '1/0': 'Y/Y'},
+                                                                inplace=True)
                             df_matches[column_to_check].replace({'X/X': '1/0',
-                                                        'Y/Y': '0/1'},
-                                                       inplace=True)
+                                                                 'Y/Y': '0/1'},
+                                                                inplace=True)
                         if column_to_check == 'ALT_2' and column_to_check in df_matches.columns:
                             df_matches[column_to_check].replace({'1/1': 'X/X',
-                                                        '1/0': 'Y/Y',
-                                                        '0/1': 'Z/Z'},
-                                                       inplace=True)
+                                                                 '1/0': 'Y/Y',
+                                                                 '0/1': 'Z/Z'},
+                                                                inplace=True)
                             df_matches[column_to_check].replace({'X/X': '1/2',
-                                                        'Y/Y': '0/2',
-                                                        'Z/Z': '1/0'},
-                                                       inplace=True)
+                                                                 'Y/Y': '0/2',
+                                                                 'Z/Z': '1/0'},
+                                                                inplace=True)
                         if column_to_check == 'ALT_3' and column_to_check in df_matches.columns:
                             df_matches[column_to_check].replace({'1/1': 'X/X',
-                                                        '1/0': 'Y/Y',
-                                                        '0/1': 'Z/Z'},
-                                                       inplace=True)
+                                                                 '1/0': 'Y/Y',
+                                                                 '0/1': 'Z/Z'},
+                                                                inplace=True)
                             df_matches[column_to_check].replace({'X/X': '1/3',
-                                                        'Y/Y': '0/3',
-                                                        'Z/Z': '1/0'},
-                                                       inplace=True)
+                                                                 'Y/Y': '0/3',
+                                                                 'Z/Z': '1/0'},
+                                                                inplace=True)
                         if column_to_check == 'ALT_4' and column_to_check in df_matches.columns:
                             df_matches[column_to_check].replace({'1/1': 'X/X',
-                                                        '1/0': 'Y/Y',
-                                                        '0/1': 'Z/Z'},
-                                                       inplace=True)
+                                                                 '1/0': 'Y/Y',
+                                                                 '0/1': 'Z/Z'},
+                                                                inplace=True)
                             df_matches[column_to_check].replace({'X/X': '1/4',
-                                                        'Y/Y': '0/4',
-                                                        'Z/Z': '1/0'},
-                                                       inplace=True)
+                                                                 'Y/Y': '0/4',
+                                                                 'Z/Z': '1/0'},
+                                                                inplace=True)
                     # Append results to the flipped dataframe
                     global df_multiallelic_flipped
                     df_multiallelic_flipped = (df_multiallelic_flipped
@@ -698,7 +770,6 @@ if not df_alternate_alleles.empty:
         # Drop the data frame from memory and count records
         del df_multiallelic_regular
         total_records = (total_records - stat_multiallelic_regular)
-        # DEBUG print(" \u2022 " + "Total records rem:\t" + str(total_records))
 
     if not df_multiallelic_flipped.empty:
         # Drop columns that won't match to the master table, and index
@@ -729,7 +800,6 @@ if not df_alternate_alleles.empty:
         # Drop the data frame from memory and count records
         del df_multiallelic_flipped
         total_records = (total_records - stat_multiallelic_flipped)
-        # DEBUG print(" \u2022 " + "Total recs rem:\t" + str(total_records))
 
     # Delete alternate alleles data frame from memory
     del df_alternate_alleles
@@ -754,7 +824,6 @@ if not df_master.empty:
     # Drop the data frame from memory and count records
     del df_master
     total_records = (total_records - stat_rejected)
-    # DEBUG print(" \u2022 " + "Total recs rem:\t" + str(total_records))
 
 if not df_merged.empty:
     # Sort lexicographically and export to VCF with header
@@ -772,101 +841,119 @@ if not df_merged.empty:
 # OUTPUT SUMMARY STATISTICS
 # #####################################################################
 
-print("\n****************************************" +
-      "******************************")
-print("\033[1m" +
-      "iScanVCFMerge is complete! Summary statistics:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************\n")
+logging.info("")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("iScanVCFMerge is complete! Summary statistics:")
+print("\033[0m", end="\r")
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
 
-print(" \u2022 " + "Original number of iScan records:" +
-      "\t\t\t\t" + str(stat_iScan_total_before_sanitization))
-print(" \u2022 " + "Duplicate positions dropped:" + "\t\t\t\t\t" +
-      str(stat_chrom_pos_dupes))
-print(" \u2022 " + "Positions dropped where REF contained an INDEL:" +
-      "\t\t" + str(stat_ref_was_indel))
-print(" \u2022 " + "Positions dropped where ALT still contained an " +
-      "INDEL:" + "\t" + str(stat_alt_was_indel))
-print(" \u2022 " + "Positions dropped where CHROM value was zero:" +
-      "\t\t" + str(stat_CHROM_zero))
-print(" \u2022 " + "Positions dropped where POS value was zero:" +
-      "\t\t\t" + str(stat_POS_zero))
-print(" \u2022 " + "Remaining iScan positions after clean-up:" +
-      "\t\t\t" + str(stat_iScan_total_after_sanitization) + "\n")
+logging.info(" \u2022 " + "Original number of iScan records:" +
+             "\t\t\t\t" + str(stat_iScan_total_before_sanitization))
+logging.info(" \u2022 " + "Duplicate positions dropped:" + "\t\t\t\t\t" +
+             str(stat_chrom_pos_dupes))
+logging.info(" \u2022 " + "Positions dropped where REF contained an INDEL:" +
+             "\t\t" + str(stat_ref_was_indel))
+logging.info(" \u2022 " + "Positions dropped where ALT still contained an " +
+             "INDEL:" + "\t" + str(stat_alt_was_indel))
+logging.info(" \u2022 " + "Positions dropped where CHROM value was zero:" +
+             "\t\t" + str(stat_CHROM_zero))
+logging.info(" \u2022 " + "Positions dropped where POS value was zero:" +
+             "\t\t\t" + str(stat_POS_zero))
+logging.info(" \u2022 " + "Remaining iScan positions after clean-up:" +
+             "\t\t\t" + str(stat_iScan_total_after_sanitization))
+logging.info("")
 
-print(" \u2022 " + "Positions shared between reference and iScan" +
-      "VCFs:" + "\t\t" + str(stat_loci_preserved_reference) + "\n")
+logging.info(" \u2022 " + "Positions shared between reference and iScan" +
+             "VCFs:" + "\t\t" + str(stat_loci_preserved_reference))
+logging.info("")
 
-print(" \u2022 " + "Positions where REF and ALT alleles matched " +
-      "exactly:" + "\t\t" + str(stat_exact_match))
-print(" \u2022 " + "Positions where REF and ALT alleles were" +
-      "reversed:" + "\t\t" + str(stat_ref_alt_reversed) + "\n")
-print(" \u2022 " + "Number of multiallelic ALT positions:\t\t\t" +
-      str(stat_alternate_alleles))
-print(" \u2022 " + "Number of iScan positions re-coded to use " +
-      "alternate ALT:\t" + str(stat_multiallelic_regular))
-print(" \u2022 " + "Number of iScan positions reversed to use " +
-      "alternate ALT:\t" + str(stat_multiallelic_flipped) + "\n")
+logging.info(" \u2022 " + "Positions where REF and ALT alleles matched " +
+             "exactly:" + "\t\t" + str(stat_exact_match))
+logging.info(" \u2022 " + "Positions where REF and ALT alleles were" +
+             "reversed:" + "\t\t" + str(stat_ref_alt_reversed))
+logging.info("")
 
-print(" \u2022 " + "Total number of positions re-coded and " +
-      "recovered:" + "\t\t" + str(stat_merged))
-print(" \u2022 " + "Total number of positions that were discarded:" +
-      "\t\t" + str(stat_rejected))
+logging.info(" \u2022 " + "Number of multiallelic ALT positions:\t\t\t" +
+             str(stat_alternate_alleles))
+logging.info(" \u2022 " + "Number of iScan positions re-coded to use " +
+             "alternate ALT:\t" + str(stat_multiallelic_regular))
+logging.info(" \u2022 " + "Number of iScan positions reversed to use " +
+             "alternate ALT:\t" + str(stat_multiallelic_flipped))
+logging.info("")
+
+logging.info(" \u2022 " + "Total number of positions re-coded and " +
+             "recovered:" + "\t\t" + str(stat_merged))
+logging.info(" \u2022 " + "Total number of positions that were discarded:" +
+             "\t\t" + str(stat_rejected))
 
 if int(stat_loci_preserved_reference) == 0:
     success_rate = str(round(int(stat_merged), 2))
 else:
     success_rate = str(round(((int(stat_merged)/int(stat_loci_preserved_reference))*100), 2))
 
-print(" \u2022 " + "iScanVCFMerge conversion success rate:\t\t\t" +
-      str(success_rate) + "%\n")
+logging.info(" \u2022 " + "iScanVCFMerge conversion success rate:\t\t\t" +
+             str(success_rate) + "%")
+logging.info("")
 
 executionTime = (time.time() - startTime)
-print(" \u2022 " + "iScanVCFMerge completed in " +
-      str(round(executionTime, 2)) + " seconds\n")
+logging.info(" \u2022 " + "iScanVCFMerge completed in " +
+             str(round(executionTime, 2)) + " seconds")
+logging.info("")
 
-print("****************************************" +
-      "******************************")
-print("\033[1m" +
-      "Output files:" +
-      "\033[0m")
-print("****************************************" +
-      "******************************\n")
-print(r"        .' '.    " + "\t\033[1mexact_matches_biallelic.vcf (N=" +
-      str(stat_exact_match) + ")\033[0m")
-print(r"    .-./ _=_ \.-.  " + "\tBiallelic positions where REF &" +
-      " ALT matched.")
-print(r"   {  (,(oYo),) }} ")
-print(r"   {{ |  ' '  | }} " + "\t\033[1mexact_matches_rev_biallelic.vcf" +
-      " (N=" + str(stat_ref_alt_reversed) + ")\033[0m")
-print(r"   { {  (---)   }} " + "\tBiallelic positions that matched " +
-      "once reversed.")
-print(r"   {{  }'-=-'{ } } ")
-print(r"   { { }._:_.{  }} " + "\t\033[1mexact_matches_multiallelic.vcf" +
-      " (N=" + str(stat_multiallelic_regular) + ")\033[0m")
-print(r"   {{  } -:- { } } " + "\tMultiallelic positions where" +
-      " REF & ALT matched.")
-print(r"   {_{ }`===`{  _} ")
-print(r"  ((((\)     (/))))" + "\t\033[1mexact_matches_rev_" +
-      "multiallelic.vcf (N=" + str(stat_multiallelic_flipped) + ")\033[0m")
-print("                    " + "\tMultiallelic positions that " +
-      "matched once reversed.\n")
-print(r"        .=''=.         " + "\033[1m\tmerged.vcf (N=" +
-      str(stat_merged) + ")\033[0m")
-print(r"      _/.-.-.\_     _ " + "\tAll of the above for downstream use.")
-print(r"     ( ( o o ) )    ))" + "\ti.e. " + str(stat_exact_match) +
-      " + " + str(stat_ref_alt_reversed) + " + " +
-      str(stat_multiallelic_regular) + " + " +
-      str(stat_multiallelic_flipped) + " = " + str(stat_merged))
-print(r'      |/  "  \|    // ')
-print(r"       \\---//    //  " + "\033[1m\trejected.vcf (N=" +
-      str(stat_rejected) + ")\033[0m")
-print(r'       /`"""`\\  ((   ' + "\tPositions that did not match.")
-print(r"      / /_,_\ \\  \\  ")
-print(r"      \_\\_'__/ \  )) " + "\t\tThank you for using iScanVCFMerge!")
-print(r"      /`  /`~\  |//   ")
-print(r"     /   /    \  /    ")
-print(r" ,--`,--'\/\    /     ")
-print(r"  '-- ''--'  '--'     ")
-print("\n")
+logging.info("****************************************" +
+             "******************************")
+print("\033[1m", end="\r")
+logging.info("Output files:")
+print("\033[0m", end="\r")
+logging.info("****************************************" +
+             "******************************")
+logging.info("")
+
+logging.info(r"        .' '.    " +
+             "\t\033[1mexact_matches_biallelic.vcf (N=" +
+             str(stat_exact_match) + ")\033[0m")
+logging.info(r"    .-./ _=_ \.-.  " + "\tBiallelic positions where REF &" +
+             " ALT matched.")
+logging.info(r"   {  (,(oYo),) }} ")
+logging.info(r"   {{ |  ' '  | }} " +
+             "\t\033[1mexact_matches_rev_biallelic.vcf" +
+             " (N=" + str(stat_ref_alt_reversed) + ")\033[0m")
+logging.info(r"   { {  (---)   }} " + "\tBiallelic positions that matched " +
+             "once reversed.")
+logging.info(r"   {{  }'-=-'{ } } ")
+logging.info(r"   { { }._:_.{  }} " +
+             "\t\033[1mexact_matches_multiallelic.vcf" +
+             " (N=" + str(stat_multiallelic_regular) + ")\033[0m")
+logging.info(r"   {{  } -:- { } } " + "\tMultiallelic positions where" +
+             " REF & ALT matched.")
+logging.info(r"   {_{ }`===`{  _} ")
+logging.info(r"  ((((\)     (/))))" + "\t\033[1mexact_matches_rev_" +
+             "multiallelic.vcf (N=" + str(stat_multiallelic_flipped) +
+             ")\033[0m")
+logging.info("                    " + "\tMultiallelic positions that " +
+             "matched once reversed.")
+logging.info("")
+logging.info(r"        .=''=.         " + "\033[1m\tmerged.vcf (N=" +
+             str(stat_merged) + ")\033[0m")
+logging.info(r"      _/.-.-.\_     _ " +
+             "\tAll of the above for downstream use.")
+logging.info(r"     ( ( o o ) )    ))" + "\ti.e. " + str(stat_exact_match) +
+             " + " + str(stat_ref_alt_reversed) + " + " +
+             str(stat_multiallelic_regular) + " + " +
+             str(stat_multiallelic_flipped) + " = " + str(stat_merged))
+logging.info(r'      |/  "  \|    // ')
+logging.info(r"       \\---//    //  " + "\033[1m\trejected.vcf (N=" +
+             str(stat_rejected) + ")\033[0m")
+logging.info(r'       /`"""`\\  ((   ' + "\tPositions that did not match.")
+logging.info(r"      / /_,_\ \\  \\  ")
+logging.info(r"      \_\\_'__/ \  )) " + "\t\t" +
+             "Thank you for using iScanVCFMerge!")
+logging.info(r"      /`  /`~\  |//   ")
+logging.info(r"     /   /    \  /    ")
+logging.info(r" ,--`,--'\/\    /     ")
+logging.info(r"  '-- ''--'  '--'     ")
+logging.info("\n")
