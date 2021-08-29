@@ -4,8 +4,8 @@ iScanVCFMerge is a Python tool to facilitate the cross-species application of [I
 
 ## What's new in version 1.1?
 - Bugs fixed to properly handle some multi-allelic sites.
-- The reference population VCF file must now be bgzipped and indexed with tabix. This requirement does not apply to the iScan VCF file, which can either be uncompressed or gzip compressed.
-- In the prior version, the complete reference population VCF file was read into memory before the relevant records were pulled. This caused issues for some users handling enormous reference VCF files. In this version, we use the [Pysam](https://github.com/pysam-developers/pysam) library's lightweight wrapper of the [htslib C-API](http://www.ncbi.nlm.nih.gov/pubmed/19505943), to pull only the relevant records in the first place. The script should now run near-instantaneously, irrespective of input file size.
+- The reference population VCF file must now be [bgzipped and indexed with tabix](https://www.biostars.org/p/59492/). This requirement does not apply to the iScan VCF file, which can either be uncompressed or gzip compressed.
+- In the prior version, the complete reference population VCF file was read into memory before the relevant records were pulled. This caused issues for some users handling enormous reference VCF files. In this version, we use the [Pysam](https://github.com/pysam-developers/pysam) library's lightweight wrapper of the [htslib C-API](http://www.ncbi.nlm.nih.gov/pubmed/19505943) to pull only the relevant records in the first place. The script should now run near-instantaneously, irrespective of input file size.
 
 ## Installation
 
@@ -44,6 +44,7 @@ Optional arguments:
 
 Please cite the use of this software as follows:
 
-> Fountain, E. D., Zhou, L-C., Karklus, A., Liu, Q-X., Meyers, J., Fontanilla, I. K., Rafael, E. F., Yu, J-Y., Zhang, Q., Zhu, X-L., Pei, E-L., Yuan, Y-H. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective, high-throughput SNP discovery. Frontiers in Ecology and Evolution, 9:629252, doi: 10.3389/fevo.2021.629252.
+> Fountain, E. D., Zhou, L-C., Karklus, A., Liu, Q-X., Meyers, J., Fontanilla, I. K., Rafael, E. F., Yu, J-Y., Zhang, Q., Zhu, X-L., Pei, E-L., Yuan, Y-H. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective, high-throughput SNP discovery. _Frontiers in Ecology and Evolution_, **9**:629252, doi: 10.3389/fevo.2021.629252.
 
+Please also cite the DOI of the software version you use:
 > Version 1.1 DOI
