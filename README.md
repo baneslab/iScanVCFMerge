@@ -19,7 +19,7 @@ iScanVCFMerge 1.1 requires Python 3.9. It has been successfully tested on MacOS 
 
 If running the script directly with Python, you may also need to install the required packages, _e.g._:
 
-    python3 -m pip install pandas
+    python3 -m pip install pandas pysam
     
 ### Run Option 2: Install with pip
 
