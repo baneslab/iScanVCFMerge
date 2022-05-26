@@ -535,8 +535,8 @@ if not df_exact_match.empty:
         f.close()
     # Drop the records from the master
     df_master.drop(df_exact_match_index, inplace=True)
-    # Append the data frame to df_merged
-    df_merged = df_merged.append(df_exact_match)
+    # Concat the data frame to df_merged
+    df_merged = pd.concat([df_merged, df_exact_match])   
     # Drop the data frame from memory and count records
     del df_exact_match
     total_records = (total_records - stat_exact_match)
@@ -581,8 +581,8 @@ if not df_ref_alt_reversed.empty:
         f.close()
     # Drop the records from the master
     df_master.drop(df_ref_alt_reversed_index, inplace=True)
-    # Append the data frame to df_merged
-    df_merged = df_merged.append(df_ref_alt_reversed)
+    # Concat the data frame to df_merged
+    df_merged = pd.concat([df_merged, df_ref_alt_reversed])
     # Drop the data frame from memory and count records
     del df_ref_alt_reversed
     total_records = (total_records - stat_ref_alt_reversed)
@@ -663,10 +663,10 @@ if not df_alternate_alleles.empty:
                             df_matches[each_sample].replace({'0/1': '0/4',
                                                              '1/1': '1/4'},
                                                             inplace=True)
-                    # Append results to the regular dataframe
+                    # Concat results to the regular dataframe
                     global df_multiallelic_regular
-                    df_multiallelic_regular = (df_multiallelic_regular.
-                                               append(df_matches))
+                    df_multiallelic_regular = pd.concat([df_multiallelic_regular,
+                                               df_matches])                    
                 # We have to drop at the end of ALT_4,
                 # i.e. before moving to 'flipped'
                 # otherwise flipped will find some
@@ -733,10 +733,9 @@ if not df_alternate_alleles.empty:
                                                                  'Y/Y': '0/4',
                                                                  'Z/Z': '1/0'},
                                                                 inplace=True)
-                    # Append results to the flipped dataframe
+                    # Concat results to the flipped dataframe
                     global df_multiallelic_flipped
-                    df_multiallelic_flipped = (df_multiallelic_flipped
-                                               .append(df_matches))
+                    df_multiallelic_flipped = pd.concat([df_multiallelic_flipped, df_matches])
                     # Clear the df_matches dataframe
                     del df_matches
 
@@ -779,8 +778,8 @@ if not df_alternate_alleles.empty:
             stat_multiallelic_regular = len(df_multiallelic_regular_index)
         # Drop the records from the master
         df_master.drop(df_multiallelic_regular_index, inplace=True)
-        # Append the data frame to df_merged
-        df_merged = df_merged.append(df_multiallelic_regular)
+        # Concat the data frame to df_merged
+        df_merged = pd.concat([df_merged, df_multiallelic_regular])
         # Drop the data frame from memory and count records
         del df_multiallelic_regular
         total_records = (total_records - stat_multiallelic_regular)
@@ -810,8 +809,8 @@ if not df_alternate_alleles.empty:
             stat_multiallelic_flipped = len(df_multiallelic_flipped_index)
         # Drop the records from the master
         df_master.drop(df_multiallelic_flipped_index, inplace=True)
-        # Append the data frame to df_merged
-        df_merged = df_merged.append(df_multiallelic_flipped)
+        # Concat the data frame to df_merged
+        df_merged = pd.concat([df_merged, df_multiallelic_flipped])
         # Drop the data frame from memory and count records
         del df_multiallelic_flipped
         total_records = (total_records - stat_multiallelic_flipped)
