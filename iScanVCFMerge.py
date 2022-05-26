@@ -37,6 +37,7 @@ from textwrap import fill, indent
 import pysam
 import tempfile
 import pandas as pd
+from pandas.api.types import CategoricalDtype
 
 startTime = time.time()
 
