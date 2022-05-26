@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-'''iScanVCFMerge v1.1 build 2021-08-29'''
+'''iScanVCFMerge v1.2 build 2022-05-26'''
 
 # MIT License
-# Copyright © 2021 Banes, G. L., Meyers, J. and Fountain, E. D.
+# Copyright © 2021-2022 Banes, G. L., Meyers, J. and Fountain, E. D.
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated
@@ -37,6 +37,7 @@ from textwrap import fill, indent
 import pysam
 import tempfile
 import pandas as pd
+from pandas.api.types import CategoricalDtype
 
 startTime = time.time()
 
@@ -47,7 +48,7 @@ startTime = time.time()
 try:
     assert sys.version_info >= (3, 9)
 except AssertionError:
-    print("iScanVCFMerge v1.1 requires Python 3.9 or greater.")
+    print("iScanVCFMerge v1.2 requires Python 3.9 or greater.")
     exit(1)
 
 # #####################################################################
@@ -117,7 +118,7 @@ logging.info(r" | |___) | (_| (_| | | | \ V /| |__" +
 logging.info(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
              r"_|_|   |_|  |_|\___|_|  \__, |\___|")
 logging.info("        https://www.github.com/banesla" +
-             "b" + " \u2022 " + "v1.1 2021-08-29" +
+             "b" + " \u2022 " + "v1.2 2022-05-26" +
              r"  |___/")
 print("\033[0m", end="\r")
 logging.info("")
@@ -327,9 +328,20 @@ if os.path.exists(reference_file + '.tbi'):
     logging.info("")
     output_header = ["##fileformat=VCFv4.3"]
     output_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
-    output_header += ["##source=iScanVCFMergev1.1"]
-    output_header += contig_header
+    output_header += ["##source=iScanVCFMergev1.2"]
+    output_header += [contig_header]
+    output_header += ["##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"]
+    
+    # Constructing sequence dictionary for sorting
+    newDict = []
+    for ln in contig_lines:
+        ln = ln.replace('##contig=<ID=', '').strip()
+        ln = ln.split(',')[0]
+        newDict += [ln]
+    
+    cat_newDict = CategoricalDtype(categories=newDict, ordered=True)
 
+    
 else:
     logging.info("   " + "None found. Please bgzip your reference file")
     logging.info("   " + "and index with tabix before proceeding.")
@@ -401,9 +413,9 @@ if 'FORMAT' in df_reference.columns:
     # all sample columns:
     for column in cols_samples_in_reference:
         df_reference[column] = [x.split(':')[0] for x in df_reference[column]]
-
-    # Drop format column
-    df_reference.drop(columns=['FORMAT'], inplace=True)
+        
+    # Set FORMAT column to GT
+    df_reference = df_reference.assign(FORMAT='GT')
 
 logging.info("")
 logging.info(" \u2022 " + "Sorting the variants lexicographically...")
@@ -431,7 +443,7 @@ logging.info(" \u2022 " + "Collecting sample information...")
 logging.info("")
 
 # Collect information on samples in the iScan VCF
-# We minus only 5 because CHROM, POS, REF, ALT and ID
+# We minus only 5 because CHROM, POS, iID, iREF AND iALT
 # are the only columns remaining
 iScan_num_samples = (len(df_iScan.columns)-5)
 # Here we get a list of sample column names to loop over
@@ -473,7 +485,7 @@ df_master.drop(columns=['iID'], inplace=True)
 # Re-order remaining columns
 df_master = df_master.reindex(columns=(['CHROM', 'POS', 'ID', 'REF',
                                         'iREF', 'ALT', 'iALT', 'QUAL',
-                                        'FILTER', 'INFO'] +
+                                        'FILTER', 'INFO', 'FORMAT'] +
                                        iScan_cols_samples +
                                        cols_samples_in_reference))
 
@@ -513,7 +525,8 @@ if not df_exact_match.empty:
     # Drop the superfluous columns
     df_exact_match.drop(columns=['iREF', 'iALT'],
                         inplace=True)
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_exact_match["CHROM"] = df_exact_match["CHROM"].astype(cat_newDict)
     df_exact_match.sort_values(by=["CHROM", "POS"], inplace=True)
     df_exact_match.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/exact_matches_biallelic.vcf", 'w') as f:
@@ -523,8 +536,8 @@ if not df_exact_match.empty:
         f.close()
     # Drop the records from the master
     df_master.drop(df_exact_match_index, inplace=True)
-    # Append the data frame to df_merged
-    df_merged = df_merged.append(df_exact_match)
+    # Concat the data frame to df_merged
+    df_merged = pd.concat([df_merged, df_exact_match])   
     # Drop the data frame from memory and count records
     del df_exact_match
     total_records = (total_records - stat_exact_match)
@@ -558,7 +571,8 @@ if not df_ref_alt_reversed.empty:
         df_ref_alt_reversed[column].replace({'A/A': '1/1', 'A/B': '1/0',
                                              'B/A': '0/1', 'B/B': '0/0'},
                                             inplace=True)
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_ref_alt_reversed["CHROM"] = df_ref_alt_reversed["CHROM"].astype(cat_newDict)
     df_ref_alt_reversed.sort_values(by=["CHROM", "POS"], inplace=True)
     df_ref_alt_reversed.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/exact_matches_rev_biallelic.vcf", 'w') as f:
@@ -568,8 +582,8 @@ if not df_ref_alt_reversed.empty:
         f.close()
     # Drop the records from the master
     df_master.drop(df_ref_alt_reversed_index, inplace=True)
-    # Append the data frame to df_merged
-    df_merged = df_merged.append(df_ref_alt_reversed)
+    # Concat the data frame to df_merged
+    df_merged = pd.concat([df_merged, df_ref_alt_reversed])
     # Drop the data frame from memory and count records
     del df_ref_alt_reversed
     total_records = (total_records - stat_ref_alt_reversed)
@@ -650,10 +664,10 @@ if not df_alternate_alleles.empty:
                             df_matches[each_sample].replace({'0/1': '0/4',
                                                              '1/1': '1/4'},
                                                             inplace=True)
-                    # Append results to the regular dataframe
+                    # Concat results to the regular dataframe
                     global df_multiallelic_regular
-                    df_multiallelic_regular = (df_multiallelic_regular.
-                                               append(df_matches))
+                    df_multiallelic_regular = pd.concat([df_multiallelic_regular,
+                                               df_matches])                    
                 # We have to drop at the end of ALT_4,
                 # i.e. before moving to 'flipped'
                 # otherwise flipped will find some
@@ -720,10 +734,9 @@ if not df_alternate_alleles.empty:
                                                                  'Y/Y': '0/4',
                                                                  'Z/Z': '1/0'},
                                                                 inplace=True)
-                    # Append results to the flipped dataframe
+                    # Concat results to the flipped dataframe
                     global df_multiallelic_flipped
-                    df_multiallelic_flipped = (df_multiallelic_flipped
-                                               .append(df_matches))
+                    df_multiallelic_flipped = pd.concat([df_multiallelic_flipped, df_matches])
                     # Clear the df_matches dataframe
                     del df_matches
 
@@ -750,7 +763,8 @@ if not df_alternate_alleles.empty:
         # Drop columns not needed in the VCF
         df_multiallelic_regular.drop(columns=['iREF', 'iALT'],
                                      inplace=True, errors='ignore')
-        # Sort lexicographically and export to VCF with header
+        # Sort by sequence dictionary and export to VCF with header
+        df_multiallelic_regular["CHROM"] = df_multiallelic_regular["CHROM"].astype(cat_newDict)
         df_multiallelic_regular.sort_values(by=["CHROM", "POS"],
                                             inplace=True)
         df_multiallelic_regular.rename(columns={'CHROM': '#CHROM'},
@@ -765,8 +779,8 @@ if not df_alternate_alleles.empty:
             stat_multiallelic_regular = len(df_multiallelic_regular_index)
         # Drop the records from the master
         df_master.drop(df_multiallelic_regular_index, inplace=True)
-        # Append the data frame to df_merged
-        df_merged = df_merged.append(df_multiallelic_regular)
+        # Concat the data frame to df_merged
+        df_merged = pd.concat([df_merged, df_multiallelic_regular])
         # Drop the data frame from memory and count records
         del df_multiallelic_regular
         total_records = (total_records - stat_multiallelic_regular)
@@ -780,7 +794,8 @@ if not df_alternate_alleles.empty:
         # Drop columns not needed in the VCF
         df_multiallelic_flipped.drop(columns=['iREF', 'iALT'],
                                      inplace=True, errors='ignore')
-        # Sort lexicographically and export to VCF with header
+        # Sort by sequence dictionary and export to VCF with header
+        df_multiallelic_flipped["CHROM"] = df_multiallelic_flipped["CHROM"].astype(cat_newDict)        
         df_multiallelic_flipped.sort_values(by=["CHROM", "POS"],
                                             inplace=True)
         df_multiallelic_flipped.rename(columns={'CHROM': '#CHROM'},
@@ -795,8 +810,8 @@ if not df_alternate_alleles.empty:
             stat_multiallelic_flipped = len(df_multiallelic_flipped_index)
         # Drop the records from the master
         df_master.drop(df_multiallelic_flipped_index, inplace=True)
-        # Append the data frame to df_merged
-        df_merged = df_merged.append(df_multiallelic_flipped)
+        # Concat the data frame to df_merged
+        df_merged = pd.concat([df_merged, df_multiallelic_flipped])
         # Drop the data frame from memory and count records
         del df_multiallelic_flipped
         total_records = (total_records - stat_multiallelic_flipped)
@@ -812,7 +827,8 @@ stat_rejected = "0"
 stat_merged = "0"
 
 if not df_master.empty:
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_master["CHROM"] = df_master["CHROM"].astype(cat_newDict)
     df_master.sort_values(by=["CHROM", "POS"], inplace=True)
     df_master.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/rejected.vcf", 'w') as f:
@@ -826,7 +842,8 @@ if not df_master.empty:
     total_records = (total_records - stat_rejected)
 
 if not df_merged.empty:
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_merged["#CHROM"] = df_merged["#CHROM"].astype(cat_newDict)
     df_merged.sort_values(by=["#CHROM", "POS"], inplace=True)
     with open(path + "/merged.vcf", 'w') as f:
         f.write("\n".join(output_header) + "\n")
