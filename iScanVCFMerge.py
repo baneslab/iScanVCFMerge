@@ -842,9 +842,8 @@ if not df_master.empty:
 
 if not df_merged.empty:
     # Sort by sequence dictionary and export to VCF with header
-    df_merged["CHROM"] = df_merged["CHROM"].astype(cat_newDict)
-    df_merged.sort_values(by=["CHROM", "POS"], inplace=True)
-    df_merged.rename(columns={'CHROM': '#CHROM'}, inplace=True)
+    df_merged["#CHROM"] = df_merged["#CHROM"].astype(cat_newDict)
+    df_merged.sort_values(by=["#CHROM", "POS"], inplace=True)
     with open(path + "/merged.vcf", 'w') as f:
         f.write("\n".join(output_header) + "\n")
         df_merged.to_csv(f, index=False, sep='\t', header=True, mode='a')
