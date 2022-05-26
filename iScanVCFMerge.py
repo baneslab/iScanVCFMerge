@@ -412,6 +412,9 @@ if 'FORMAT' in df_reference.columns:
     # all sample columns:
     for column in cols_samples_in_reference:
         df_reference[column] = [x.split(':')[0] for x in df_reference[column]]
+        
+    # Set FORMAT column to GT
+    df_reference = df_reference.assign(FORMAT='GT')
 
 logging.info("")
 logging.info(" \u2022 " + "Sorting the variants lexicographically...")
