@@ -2,7 +2,7 @@
 '''iScanVCFMerge v1.2 build 2022-05-26'''
 
 # MIT License
-# Copyright © 2021 Banes, G. L., Meyers, J. and Fountain, E. D.
+# Copyright © 2021-2022 Banes, G. L., Meyers, J. and Fountain, E. D.
 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated
