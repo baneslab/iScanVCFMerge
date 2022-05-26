@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-'''iScanVCFMerge v1.1 build 2021-08-29'''
+'''iScanVCFMerge v1.2 build 2022-05-26'''
 
 # MIT License
 # Copyright © 2021 Banes, G. L., Meyers, J. and Fountain, E. D.
@@ -48,7 +48,7 @@ startTime = time.time()
 try:
     assert sys.version_info >= (3, 9)
 except AssertionError:
-    print("iScanVCFMerge v1.1 requires Python 3.9 or greater.")
+    print("iScanVCFMerge v1.2 requires Python 3.9 or greater.")
     exit(1)
 
 # #####################################################################
@@ -118,7 +118,7 @@ logging.info(r" | |___) | (_| (_| | | | \ V /| |__" +
 logging.info(r" |_|____/ \___\__,_|_| |_|\_/  \___" +
              r"_|_|   |_|  |_|\___|_|  \__, |\___|")
 logging.info("        https://www.github.com/banesla" +
-             "b" + " \u2022 " + "v1.1 2021-08-29" +
+             "b" + " \u2022 " + "v1.2 2022-05-26" +
              r"  |___/")
 print("\033[0m", end="\r")
 logging.info("")
@@ -328,7 +328,7 @@ if os.path.exists(reference_file + '.tbi'):
     logging.info("")
     output_header = ["##fileformat=VCFv4.3"]
     output_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
-    output_header += ["##source=iScanVCFMergev1.1"]
+    output_header += ["##source=iScanVCFMergev1.2"]
     output_header += [contig_header]
     output_header += ["##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"]
     
