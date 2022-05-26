@@ -524,7 +524,8 @@ if not df_exact_match.empty:
     # Drop the superfluous columns
     df_exact_match.drop(columns=['iREF', 'iALT'],
                         inplace=True)
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_exact_match["CHROM"] = df_exact_match["CHROM"].astype(cat_newDict)
     df_exact_match.sort_values(by=["CHROM", "POS"], inplace=True)
     df_exact_match.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/exact_matches_biallelic.vcf", 'w') as f:
@@ -569,7 +570,8 @@ if not df_ref_alt_reversed.empty:
         df_ref_alt_reversed[column].replace({'A/A': '1/1', 'A/B': '1/0',
                                              'B/A': '0/1', 'B/B': '0/0'},
                                             inplace=True)
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_ref_alt_reversed["CHROM"] = df_ref_alt_reversed["CHROM"].astype(cat_newDict)
     df_ref_alt_reversed.sort_values(by=["CHROM", "POS"], inplace=True)
     df_ref_alt_reversed.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/exact_matches_rev_biallelic.vcf", 'w') as f:
@@ -761,7 +763,8 @@ if not df_alternate_alleles.empty:
         # Drop columns not needed in the VCF
         df_multiallelic_regular.drop(columns=['iREF', 'iALT'],
                                      inplace=True, errors='ignore')
-        # Sort lexicographically and export to VCF with header
+        # Sort by sequence dictionary and export to VCF with header
+        df_multiallelic_regular["CHROM"] = df_multiallelic_regular["CHROM"].astype(cat_newDict)
         df_multiallelic_regular.sort_values(by=["CHROM", "POS"],
                                             inplace=True)
         df_multiallelic_regular.rename(columns={'CHROM': '#CHROM'},
@@ -791,7 +794,8 @@ if not df_alternate_alleles.empty:
         # Drop columns not needed in the VCF
         df_multiallelic_flipped.drop(columns=['iREF', 'iALT'],
                                      inplace=True, errors='ignore')
-        # Sort lexicographically and export to VCF with header
+        # Sort by sequence dictionary and export to VCF with header
+        df_multiallelic_flipped["CHROM"] = df_multiallelic_flipped["CHROM"].astype(cat_newDict)        
         df_multiallelic_flipped.sort_values(by=["CHROM", "POS"],
                                             inplace=True)
         df_multiallelic_flipped.rename(columns={'CHROM': '#CHROM'},
@@ -823,7 +827,8 @@ stat_rejected = "0"
 stat_merged = "0"
 
 if not df_master.empty:
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_master["CHROM"] = df_master["CHROM"].astype(cat_newDict)
     df_master.sort_values(by=["CHROM", "POS"], inplace=True)
     df_master.rename(columns={'CHROM': '#CHROM'}, inplace=True)
     with open(path + "/rejected.vcf", 'w') as f:
@@ -837,7 +842,8 @@ if not df_master.empty:
     total_records = (total_records - stat_rejected)
 
 if not df_merged.empty:
-    # Sort lexicographically and export to VCF with header
+    # Sort by sequence dictionary and export to VCF with header
+    df_merged["CHROM"] = df_merged["CHROM"].astype(cat_newDict)
     df_merged.sort_values(by=["#CHROM", "POS"], inplace=True)
     with open(path + "/merged.vcf", 'w') as f:
         f.write("\n".join(output_header) + "\n")
