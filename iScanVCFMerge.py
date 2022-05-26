@@ -329,7 +329,7 @@ if os.path.exists(reference_file + '.tbi'):
     output_header = ["##fileformat=VCFv4.3"]
     output_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
     output_header += ["##source=iScanVCFMergev1.1"]
-    output_header += contig_header
+    output_header += [contig_header]
 
 else:
     logging.info("   " + "None found. Please bgzip your reference file")
