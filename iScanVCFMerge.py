@@ -413,9 +413,6 @@ if 'FORMAT' in df_reference.columns:
     for column in cols_samples_in_reference:
         df_reference[column] = [x.split(':')[0] for x in df_reference[column]]
 
-    # Drop format column
-    df_reference.drop(columns=['FORMAT'], inplace=True)
-
 logging.info("")
 logging.info(" \u2022 " + "Sorting the variants lexicographically...")
 df_reference.sort_values(by=["CHROM", "POS"], inplace=True)
@@ -442,7 +439,7 @@ logging.info(" \u2022 " + "Collecting sample information...")
 logging.info("")
 
 # Collect information on samples in the iScan VCF
-# We minus only 5 because CHROM, POS, REF, ALT and ID
+# We minus only 5 because CHROM, POS, iID, iREF AND iALT
 # are the only columns remaining
 iScan_num_samples = (len(df_iScan.columns)-5)
 # Here we get a list of sample column names to loop over
@@ -484,7 +481,7 @@ df_master.drop(columns=['iID'], inplace=True)
 # Re-order remaining columns
 df_master = df_master.reindex(columns=(['CHROM', 'POS', 'ID', 'REF',
                                         'iREF', 'ALT', 'iALT', 'QUAL',
-                                        'FILTER', 'INFO'] +
+                                        'FILTER', 'INFO', 'FORMAT'] +
                                        iScan_cols_samples +
                                        cols_samples_in_reference))
 
