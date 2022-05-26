@@ -330,7 +330,17 @@ if os.path.exists(reference_file + '.tbi'):
     output_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
     output_header += ["##source=iScanVCFMergev1.1"]
     output_header += [contig_header]
+    
+    # Constructing sequence dictionary for sorting
+    newDict = []
+    for ln in contig_lines:
+        ln = ln.replace('##contig=<ID=', '').strip()
+        ln = ln.split(',')[0]
+        newDict += [ln]
+    
+    cat_newDict = CategoricalDtype(categories=newDict, ordered=True)
 
+    
 else:
     logging.info("   " + "None found. Please bgzip your reference file")
     logging.info("   " + "and index with tabix before proceeding.")
