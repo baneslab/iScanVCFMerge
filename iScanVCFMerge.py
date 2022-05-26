@@ -330,6 +330,7 @@ if os.path.exists(reference_file + '.tbi'):
     output_header += ["##fileDate=" + date.today().strftime("%Y%m%d")]
     output_header += ["##source=iScanVCFMergev1.1"]
     output_header += [contig_header]
+    output_header += ["##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">"]
     
     # Constructing sequence dictionary for sorting
     newDict = []
