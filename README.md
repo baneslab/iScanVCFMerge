@@ -50,4 +50,4 @@ Please cite the use of this software as follows:
 
 > Fountain, E. D., Zhou, L-C., Karklus, A., Liu, Q-X., Meyers, J., Fontanilla, I. K., Rafael, E. F., Yu, J-Y., Zhang, Q., Zhu, X-L., Pei, E-L., Yuan, Y-H. and Banes, G. L. (2021). Cross-species application of Illumina iScan microarrays for cost-effective, high-throughput SNP discovery. _Frontiers in Ecology and Evolution_, **9**:629252, doi: 10.3389/fevo.2021.629252.
 
-The [Research Resource Identifier](https://www.force11.org/group/resource-identification-initiative] for iScanVCFMerge is (RRID:SCR_021193)[https://scicrunch.org/resolver/RRID:SCR_021193).
+The [Research Resource Identifier](https://www.force11.org/group/resource-identification-initiative) for iScanVCFMerge is [RRID:SCR_021193](https://scicrunch.org/resolver/RRID:SCR_021193).
